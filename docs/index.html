@@ -13,6 +13,14 @@
         --muted: #8b949e;
         --accent: #58a6ff;
       }
+      :root[data-theme="light"] {
+        --bg: #ffffff;
+        --panel: #f6f8fa;
+        --border: #d0d7de;
+        --fg: #1f2328;
+        --muted: #656d76;
+        --accent: #0969da;
+      }
       * { box-sizing: border-box; }
       body {
         margin: 0;
@@ -49,6 +57,18 @@
         border-radius: 8px;
       }
       .count { color: var(--muted); white-space: nowrap; }
+      #theme-toggle {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      #theme-toggle:hover { border-color: var(--accent); }
       main {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -104,6 +124,7 @@
         <select id="weight" title="Preview weight">
           <option value="regular">regular</option>
         </select>
+        <button id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle theme"></button>
         <span class="count" id="count">Loading…</span>
       </div>
     </header>
@@ -116,9 +137,47 @@
       const countEl = document.getElementById("count");
       const weightEl = document.getElementById("weight");
       const toast = document.getElementById("toast");
+      const themeToggle = document.getElementById("theme-toggle");
 
       let icons = [];
       let currentWeight = "regular";
+
+      // Theme: persisted in localStorage, else falls back to the OS preference.
+      // Default stylesheet is dark; setting data-theme="light" flips the vars.
+      function applyTheme(theme) {
+        const isLight = theme === "light";
+        document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
+        // Button shows the action it performs next.
+        themeToggle.textContent = isLight ? "🌙 Dark" : "☀️ Light";
+      }
+
+      function initTheme() {
+        let saved = null;
+        try {
+          saved = localStorage.getItem("theme");
+        } catch {
+          // localStorage may be blocked (e.g. file://); ignore.
+        }
+        const prefersLight =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: light)").matches;
+        applyTheme(saved || (prefersLight ? "light" : "dark"));
+      }
+
+      themeToggle.addEventListener("click", () => {
+        const next =
+          document.documentElement.getAttribute("data-theme") === "light"
+            ? "dark"
+            : "light";
+        applyTheme(next);
+        try {
+          localStorage.setItem("theme", next);
+        } catch {
+          // ignore persistence failure
+        }
+      });
+
+      initTheme();
 
       function showToast(msg) {
         toast.textContent = msg;
