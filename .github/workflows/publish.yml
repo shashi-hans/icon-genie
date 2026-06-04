@@ -1,0 +1,51 @@
+name: Publish to npm
+
+# Publishes when a version tag is pushed, e.g. `git tag v1.2.3 && git push --tags`.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Enables npm provenance (supply-chain attestation) on publish.
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Imports Phosphor SVGs so the icon source/components can be generated in
+      # CI (raw-svgs/ may be committed, but this guarantees a clean set).
+      - name: Fetch Phosphor icons
+        run: |
+          git clone --depth 1 https://github.com/phosphor-icons/core.git phosphor-core
+          node scripts/import-phosphor.js phosphor-core/assets
+
+      - name: Build (icons + bundle)
+        run: npm run build:all
+
+      - name: Verify tag matches package version
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}" >&2
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,20 @@
+# What ships to npm is controlled primarily by the "files" allowlist in
+# package.json ("dist"). This .npmignore is a belt-and-suspenders exclusion of
+# everything that is not the built output, so the published tarball stays small.
+raw-svgs/
+src/
+scripts/
+docs/
+.github/
+
+# Configs and source maps are not needed by consumers
+tsup.config.ts
+tsconfig.json
+svgo.config.js
+*.map
+*.tsbuildinfo
+
+# Misc
+.DS_Store
+.editorconfig
+.gitignore

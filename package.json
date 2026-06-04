@@ -1,0 +1,67 @@
+{
+  "name": "@shashihans/icons",
+  "version": "0.1.0",
+  "description": "A tree-shakeable React icon library built from Phosphor Icons, with a weight prop (regular, bold, fill, duotone, light, thin).",
+  "license": "MIT",
+  "author": "Shashi Hans",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shashihans/shashihans-icons.git"
+  },
+  "homepage": "https://github.com/shashihans/shashihans-icons#readme",
+  "bugs": {
+    "url": "https://github.com/shashihans/shashihans-icons/issues"
+  },
+  "keywords": [
+    "react",
+    "icons",
+    "svg",
+    "phosphor",
+    "icon-library",
+    "typescript",
+    "tree-shakeable"
+  ],
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "scripts": {
+    "import:phosphor": "node scripts/import-phosphor.js",
+    "build:icons": "node scripts/optimize-svgs.js && node scripts/generate-components.js && node scripts/generate-index.js",
+    "build": "tsup",
+    "build:all": "npm run build:icons && npm run build",
+    "clean": "rimraf dist src/icons",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build:all"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "rimraf": "^6.0.1",
+    "svgo": "^3.3.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
