@@ -142,6 +142,10 @@ npx serve docs        # then open the printed URL
 
 - **No SVGR.** The chosen API is one component per icon with a `weight` prop, so a component embeds all six weights and switches at render. SVGR maps one SVG to one component, which doesn't fit this shape, so the generator assembles components directly. **SVGO** still optimizes every SVG first.
 - **Single-file bundle, preserved tree-shaking.** `dist/index.js` / `dist/index.cjs` are single files (Node-resolvable, simple `exports`), kept tree-shakeable via `sideEffects: false` + pure annotations rather than per-file output.
+- **Shared `IconBase`.** The `<svg>` wrapper and prop handling live once in `src/IconBase.tsx` instead of being repeated across every icon. Each generated icon only selects its weight's paths and hands them to `IconBase`. `IconBase` is internal — it is not exported from the package.
+- **Lazy weight selection.** A generated icon picks its weight with a `switch`, so a render allocates a single element rather than building all six weights eagerly.
+- **Duotone deduplication.** For the ~80% of icons whose duotone solid path is byte-identical to the regular path, the generator hoists `regular` into a local and reuses it from both, dropping the duplicated path data. Icons where it doesn't match stay fully lazy.
+- **No source maps.** They are excluded from the npm tarball anyway and would only map to generated code, so tsup is configured with `sourcemap: false`.
 
 ## Publishing
 
