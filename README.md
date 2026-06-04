@@ -1,13 +1,11 @@
 # @shashihans/icons
 
-A tree-shakeable React icon library built from [Phosphor Icons](https://phosphoricons.com/). Every icon is a single component with a `weight` prop — `regular`, `bold`, `fill`, `duotone`, `light`, or `thin`.
+A tree-shakeable React icon library. Every icon is a single component with a `weight` prop — `regular`, `bold`, `fill`, `duotone`, `light`, or `thin`.
 
 - 🌳 **Tree-shakeable** — import one icon, ship one icon.
 - 🎚️ **Six weights** per icon via a single `weight` prop.
 - 🧩 **TypeScript-first** — full types, `currentColor` by default.
 - 📦 **ESM + CJS** with proper `exports`, no runtime dependencies (only `react` as a peer).
-
-> Built from Phosphor Icons (MIT). This package repackages them as weight-switching React components; it is not affiliated with Phosphor.
 
 ## Installation
 
@@ -31,6 +29,15 @@ function Example() {
   );
 }
 ```
+
+## Browsing icons
+
+Three ways to find the icon you want:
+
+1. **Gallery** — a searchable, click-to-copy preview of every icon and weight is published at
+   `https://<your-username>.github.io/shashihans-icons/` (deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml)). Replace `<your-username>` with your GitHub user.
+2. **Editor autocomplete** — start typing `import { } from "@shashihans/icons"` and your editor lists every icon name, with full prop types on hover.
+3. **Programmatically** — `generateMetadata().iconNames` returns the complete list at runtime.
 
 ## Props
 
@@ -105,7 +112,7 @@ raw-svgs/
     my-icon-thin.svg
 ```
 
-Each SVG must use a `0 0 256 256` viewBox (Phosphor's grid) for consistent sizing. Then regenerate:
+Each SVG must use a `0 0 256 256` viewBox for consistent sizing. Then regenerate:
 
 ```bash
 npm run build:icons   # optimize → generate components → generate index
@@ -114,14 +121,11 @@ npm run build         # bundle to dist/
 
 `my-icon` becomes the `MyIcon` component, exported automatically.
 
-To (re)populate `raw-svgs/` from the full Phosphor set, see the next section.
-
 ## Local development
 
 ```bash
-# 1. Get the SVGs (one-time, ~1,500 icons × 6 weights)
-git clone --depth 1 https://github.com/phosphor-icons/core.git ../phosphor-core
-npm run import:phosphor ../phosphor-core/assets
+# 1. Make sure raw-svgs/ holds your source SVGs (one folder per icon, six
+#    weights — see "Adding or updating icons" for the layout).
 
 # 2. Run the full pipeline + bundle
 npm run build:all     # = build:icons && build
@@ -132,7 +136,6 @@ npx serve docs        # then open the printed URL
 
 | Script                  | Does                                                                |
 | ----------------------- | ------------------------------------------------------------------- |
-| `npm run import:phosphor <assets>` | Copy Phosphor SVGs into `raw-svgs/` in the per-icon layout. |
 | `npm run build:icons`   | `optimize-svgs` → `generate-components` → `generate-index`.         |
 | `npm run build`         | Bundle `src/` to `dist/` (ESM + CJS + types) with tsup.             |
 | `npm run build:all`     | `build:icons` then `build`.                                         |
@@ -157,7 +160,7 @@ npm version patch          # or minor / major — updates package.json + tags
 git push --follow-tags
 ```
 
-The workflow checks out, installs, imports Phosphor, runs `build:all`, verifies the tag matches `package.json`, and runs `npm publish` using the `NPM_TOKEN` repository secret (with npm provenance).
+The workflow checks out, installs, runs `build:all`, verifies the tag matches `package.json`, and runs `npm publish` using the `NPM_TOKEN` repository secret (with npm provenance).
 
 To publish manually:
 
@@ -169,4 +172,4 @@ npm publish --access public
 
 ## License
 
-MIT © Shashi Hans. Icon artwork © Phosphor Icons contributors (MIT).
+MIT © Shashi Hans. Icon artwork is derived from a third-party MIT-licensed icon set; see [`LICENSE`](LICENSE) for the full attribution.
