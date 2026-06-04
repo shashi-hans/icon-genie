@@ -10,7 +10,10 @@ export default defineConfig({
   entry: ["src/index.ts"],
   format: ["esm", "cjs"],
   dts: true,
-  sourcemap: true,
+  // No source maps: they are excluded from the npm tarball anyway, and they
+  // would only map to generated code. Skipping them shrinks dist/ (~16MB) and
+  // speeds the build.
+  sourcemap: false,
   clean: true,
   treeshake: true,
   splitting: false,

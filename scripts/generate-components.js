@@ -19,51 +19,58 @@ import {
   extractSvgInner,
 } from "./utils.js";
 
+// Builds one icon component. Key choices, all for speed/size:
+//   - The <svg> wrapper lives in the shared IconBase, not here.
+//   - A switch instantiates ONLY the rendered weight's element (not all six),
+//     so rendering allocates one element instead of six.
+//   - When the duotone weight's solid path is byte-identical to the regular
+//     path (true for ~70% of icons), regular is hoisted into a local and
+//     reused by both, removing the duplicated path data. The hoist is only
+//     emitted when it pays off, so other icons stay fully lazy.
 function buildComponent(componentName, innerByWeight) {
-  // The weight->markup map lives INSIDE the function on purpose. Defining it at
-  // module top level would emit jsx() calls during module evaluation, which
-  // bundlers treat as side effects and refuse to drop — defeating tree-shaking
-  // even with sideEffects:false. As a local, each icon is a pure function
-  // declaration, so unused icons are fully eliminated downstream.
-  const weightEntries = WEIGHTS.map(
-    (w) => `    ${w}: (\n      <>${innerByWeight[w]}</>\n    ),`
-  ).join("\n");
+  const reg = innerByWeight.regular;
+  const duo = innerByWeight.duotone;
+  // Exact suffix match => duotone == <tint path(s)> + <regular path>.
+  const duoReusesRegular = duo.length > reg.length && duo.endsWith(reg);
+  const tint = duoReusesRegular ? duo.slice(0, duo.length - reg.length) : null;
+
+  const caseFor = (weight, body) =>
+    `    case "${weight}":\n      paths = (\n        <>${body}</>\n      );\n      break;`;
+
+  const cases = [
+    caseFor("thin", innerByWeight.thin),
+    caseFor("light", innerByWeight.light),
+    caseFor("bold", innerByWeight.bold),
+    caseFor("fill", innerByWeight.fill),
+    duoReusesRegular
+      ? `    case "duotone":\n      paths = (\n        <>${tint}{regular}</>\n      );\n      break;`
+      : caseFor("duotone", duo),
+  ];
+
+  const regHoist = duoReusesRegular
+    ? `  const regular = (\n    <>${reg}</>\n  );\n`
+    : "";
+  const defaultBody = duoReusesRegular
+    ? `      paths = regular;`
+    : `      paths = (\n        <>${reg}</>\n      );`;
 
   return `import type * as React from "react";
-import type { IconProps, IconWeight } from "../types";
+import { IconBase } from "../IconBase";
+import type { IconProps } from "../types";
 
 export function ${componentName}({
-  size = 24,
-  color = "currentColor",
   weight = "regular",
-  className,
-  style,
-  onClick,
-  "aria-label": ariaLabel,
-  ...rest
+  ...props
 }: IconProps): React.ReactElement {
-  const weights: Record<IconWeight, React.ReactElement> = {
-${weightEntries}
-  };
-
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 256 256"
-      fill={color}
-      className={className}
-      style={style}
-      onClick={onClick}
-      aria-label={ariaLabel}
-      role={ariaLabel ? "img" : undefined}
-      aria-hidden={ariaLabel ? undefined : true}
-      {...rest}
-    >
-      {weights[weight]}
-    </svg>
-  );
+${regHoist}  let paths: React.ReactElement;
+  switch (weight) {
+${cases.join("\n")}
+    case "regular":
+    default:
+${defaultBody}
+      break;
+  }
+  return <IconBase {...props}>{paths}</IconBase>;
 }
 
 ${componentName}.displayName = "${componentName}";
