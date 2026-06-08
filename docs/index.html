@@ -3,7 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@shashihans/icons — preview</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2358a6ff' viewBox='0 0 256 256'><path d='M120 56v48a16 16 0 0 1-16 16H56a16 16 0 0 1-16-16V56a16 16 0 0 1 16-16h48a16 16 0 0 1 16 16m80-16h-48a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16V56a16 16 0 0 0-16-16m-96 96H56a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16v-48a16 16 0 0 0-16-16m96 0h-48a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16v-48a16 16 0 0 0-16-16'/></svg>"
+    />
+    <title>Icon Gallery</title>
     <style>
       :root {
         --bg: #0d1117;
@@ -12,6 +17,9 @@
         --fg: #e6edf3;
         --muted: #8b949e;
         --accent: #58a6ff;
+        /* Live preview knobs, driven by the control bar. */
+        --preview-size: 32px;
+        --preview-color: var(--fg);
       }
       :root[data-theme="light"] {
         --bg: #ffffff;
@@ -36,12 +44,13 @@
         padding: 16px 20px;
         z-index: 10;
       }
-      h1 { margin: 0 0 4px; font-size: 18px; }
+      h1 { margin: 0 0 2px; font-size: 18px; text-align: center; }
+      .tagline { color: var(--fg); margin-bottom: 2px; text-align: center; }
       .sub { color: var(--muted); margin-bottom: 12px; }
       .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       input[type="search"] {
         flex: 1;
-        min-width: 220px;
+        min-width: 200px;
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--fg);
@@ -49,26 +58,45 @@
         border-radius: 8px;
         font-size: 14px;
       }
-      select {
+      select,
+      .ctl {
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--fg);
         padding: 10px 12px;
         border-radius: 8px;
       }
-      .count { color: var(--muted); white-space: nowrap; }
-      #theme-toggle {
+      .ctl {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .ctl label { color: var(--muted); font-size: 12px; }
+      .ctl input[type="range"] { width: 100px; accent-color: var(--accent); }
+      .ctl input[type="color"] {
+        width: 28px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: none;
+        cursor: pointer;
+      }
+      .ctl .size-val { color: var(--fg); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+      .btn {
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--fg);
-        padding: 10px 12px;
+        padding: 8px 12px;
         border-radius: 8px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 13px;
         line-height: 1;
         white-space: nowrap;
       }
-      #theme-toggle:hover { border-color: var(--accent); }
+      .btn:hover { border-color: var(--accent); }
+      .count { color: var(--muted); white-space: nowrap; }
       main {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -90,7 +118,11 @@
       }
       .cell:hover { border-color: var(--accent); }
       .cell:active { transform: scale(0.97); }
-      .cell svg { width: 32px; height: 32px; color: var(--fg); }
+      .cell svg {
+        width: var(--preview-size);
+        height: var(--preview-size);
+        color: var(--preview-color);
+      }
       .cell .name {
         font-size: 11px;
         color: var(--muted);
@@ -98,6 +130,92 @@
         line-height: 1.3;
       }
       .empty { padding: 40px 20px; color: var(--muted); }
+
+      /* --- Detail modal --------------------------------------------------- */
+      #modal[hidden] { display: none; }
+      #modal {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+      }
+      .modal-card {
+        position: relative;
+        width: min(560px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .modal-close:hover { border-color: var(--accent); }
+      .modal-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+      }
+      .modal-preview svg {
+        width: 96px;
+        height: 96px;
+        color: var(--preview-color);
+      }
+      .modal-card h2 { margin: 0 0 2px; font-size: 18px; }
+      .modal-meta { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+      .weight-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+      .weight-tabs button {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 6px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .weight-tabs button[aria-pressed="true"] {
+        border-color: var(--accent);
+        color: var(--fg);
+      }
+      .snippet {
+        margin: 0 0 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        overflow-x: auto;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--fg);
+        white-space: pre;
+      }
+      .export-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
       #toast {
         position: fixed;
         bottom: 20px;
@@ -111,24 +229,56 @@
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.2s, transform 0.2s;
+        z-index: 30;
       }
       #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
   </head>
   <body>
     <header>
-      <h1>@shashihans/icons</h1>
-      <div class="sub">Click any icon to copy its import statement.</div>
+      <h1>Shashi's Icon Gallery</h1>
+      <div class="tagline">Free icons for all your needs.</div>
+      <div class="sub">Click any icon to customize, copy a snippet, or download.</div>
       <div class="controls">
         <input id="search" type="search" placeholder="Search icons…" autocomplete="off" />
         <select id="weight" title="Preview weight">
           <option value="regular">regular</option>
         </select>
-        <button id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle theme"></button>
+        <span class="ctl">
+          <label for="size">size</label>
+          <input id="size" type="range" min="16" max="96" step="2" value="32" />
+          <span class="size-val" id="size-val">32</span>
+        </span>
+        <span class="ctl">
+          <label for="color">color</label>
+          <input id="color" type="color" value="#58a6ff" />
+          <button class="btn" id="color-reset" type="button" title="Use currentColor">reset</button>
+        </span>
+        <button class="btn" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle theme"></button>
         <span class="count" id="count">Loading…</span>
       </div>
     </header>
     <main id="grid"><div class="empty">Loading icons…</div></main>
+
+    <div id="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <button class="modal-close" type="button" data-close aria-label="Close">✕</button>
+        <div class="modal-preview" id="modal-preview"></div>
+        <h2 id="modal-title"></h2>
+        <div class="modal-meta" id="modal-meta"></div>
+        <div class="weight-tabs" id="weight-tabs"></div>
+        <pre class="snippet"><code id="snippet-code"></code></pre>
+        <div class="export-row">
+          <button class="btn" data-act="jsx">Copy JSX</button>
+          <button class="btn" data-act="import">Copy import</button>
+          <button class="btn" data-act="svg">Copy SVG</button>
+          <button class="btn" data-act="dl-svg">Download SVG</button>
+          <button class="btn" data-act="dl-png">Download PNG</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toast"></div>
 
     <script>
@@ -136,80 +286,171 @@
       const search = document.getElementById("search");
       const countEl = document.getElementById("count");
       const weightEl = document.getElementById("weight");
+      const sizeEl = document.getElementById("size");
+      const sizeValEl = document.getElementById("size-val");
+      const colorEl = document.getElementById("color");
+      const colorResetEl = document.getElementById("color-reset");
       const toast = document.getElementById("toast");
       const themeToggle = document.getElementById("theme-toggle");
+      const root = document.documentElement;
 
+      // Modal elements.
+      const modal = document.getElementById("modal");
+      const modalPreview = document.getElementById("modal-preview");
+      const modalTitle = document.getElementById("modal-title");
+      const modalMeta = document.getElementById("modal-meta");
+      const weightTabs = document.getElementById("weight-tabs");
+      const snippetCode = document.getElementById("snippet-code");
+
+      const DEFAULT_SIZE = 24; // matches the library's default `size` prop
       let icons = [];
+      let weights = ["regular"];
       let currentWeight = "regular";
+      let currentSize = 32;
+      let currentColor = null; // null = currentColor (no explicit color prop)
 
-      // Theme: persisted in localStorage, else falls back to the OS preference.
-      // Default stylesheet is dark; setting data-theme="light" flips the vars.
+      // Modal state.
+      let modalIcon = null;
+      let modalWeight = "regular";
+
+      /* --- Theme ----------------------------------------------------------- */
       function applyTheme(theme) {
         const isLight = theme === "light";
-        document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
-        // Button shows the action it performs next.
+        root.setAttribute("data-theme", isLight ? "light" : "dark");
         themeToggle.textContent = isLight ? "🌙 Dark" : "☀️ Light";
       }
-
       function initTheme() {
         let saved = null;
         try {
           saved = localStorage.getItem("theme");
         } catch {
-          // localStorage may be blocked (e.g. file://); ignore.
+          /* localStorage may be blocked (e.g. file://); ignore. */
         }
         const prefersLight =
           window.matchMedia &&
           window.matchMedia("(prefers-color-scheme: light)").matches;
         applyTheme(saved || (prefersLight ? "light" : "dark"));
       }
-
       themeToggle.addEventListener("click", () => {
-        const next =
-          document.documentElement.getAttribute("data-theme") === "light"
-            ? "dark"
-            : "light";
+        const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
         applyTheme(next);
         try {
           localStorage.setItem("theme", next);
         } catch {
-          // ignore persistence failure
+          /* ignore persistence failure */
         }
       });
-
       initTheme();
 
+      /* --- Toast ----------------------------------------------------------- */
       function showToast(msg) {
         toast.textContent = msg;
         toast.classList.add("show");
         clearTimeout(showToast._t);
         showToast._t = setTimeout(() => toast.classList.remove("show"), 1500);
       }
-
-      function copyImport(component) {
-        const stmt = `import { ${component} } from "@shashihans/icons";`;
-        navigator.clipboard.writeText(stmt).then(
-          () => showToast(`Copied: ${component}`),
+      function copy(text, label) {
+        navigator.clipboard.writeText(text).then(
+          () => showToast(label),
           () => showToast("Copy failed")
         );
       }
 
+      /* --- Snippet / SVG builders ----------------------------------------- */
+      // Resolve the color used for rendering: the picked hex, or the theme's
+      // foreground when the user is on currentColor (needed for PNG/standalone
+      // SVG, which can't inherit `currentColor`).
+      function resolvedColor() {
+        if (currentColor) return currentColor;
+        return getComputedStyle(root).getPropertyValue("--fg").trim() || "#e6edf3";
+      }
+
+      function buildJSX(icon, weight) {
+        const props = [];
+        if (weight && weight !== "regular") props.push(`weight="${weight}"`);
+        if (currentSize !== DEFAULT_SIZE) props.push(`size={${currentSize}}`);
+        if (currentColor) props.push(`color="${currentColor}"`);
+        const attrs = props.length ? " " + props.join(" ") : "";
+        return `<${icon.component}${attrs} />`;
+      }
+
+      function buildImport(icon) {
+        return `import { ${icon.component} } from "@shashihans/icons";`;
+      }
+
+      // Standalone SVG markup. `forRaster` resolves currentColor to a concrete
+      // value so the string renders identically off the page (PNG export).
+      function buildSVG(icon, weight, forRaster) {
+        const markup = icon.weights[weight] || icon.weights.regular || "";
+        const fill = forRaster ? resolvedColor() : currentColor || "currentColor";
+        return (
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${currentSize}" ` +
+          `height="${currentSize}" fill="${fill}" viewBox="0 0 256 256">` +
+          `${markup}</svg>`
+        );
+      }
+
+      function download(filename, blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function downloadSVG(icon, weight) {
+        const svg = buildSVG(icon, weight, true);
+        download(`${icon.name}-${weight}.svg`, new Blob([svg], { type: "image/svg+xml" }));
+        showToast(`Downloaded ${icon.name}.svg`);
+      }
+
+      function downloadPNG(icon, weight) {
+        // Render the standalone SVG to a canvas at 4× for a crisp raster.
+        const scale = 4;
+        const px = Math.max(currentSize, 64) * scale;
+        const svg = buildSVG(icon, weight, true);
+        const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = px;
+          canvas.height = px;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, px, px);
+          URL.revokeObjectURL(url);
+          canvas.toBlob((png) => {
+            if (!png) return showToast("PNG export failed");
+            download(`${icon.name}-${weight}.png`, png);
+            showToast(`Downloaded ${icon.name}.png`);
+          }, "image/png");
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          showToast("PNG export failed");
+        };
+        img.src = url;
+      }
+
+      /* --- Grid ------------------------------------------------------------ */
       function render(list) {
         if (!list.length) {
           grid.innerHTML = '<div class="empty">No icons match your search.</div>';
           return;
         }
-        // Build with a fragment for speed across ~1,500 nodes.
         const frag = document.createDocumentFragment();
         for (const icon of list) {
           const cell = document.createElement("div");
           cell.className = "cell";
-          cell.title = `Click to copy import for ${icon.component}`;
+          cell.title = `Click for ${icon.component} options`;
           const markup = icon.weights[currentWeight] || icon.weights.regular || "";
           cell.innerHTML =
             `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>` +
             `<span class="name">${icon.name}</span>`;
-          cell.addEventListener("click", () => copyImport(icon.component));
+          cell.addEventListener("click", () => openModal(icon));
           frag.appendChild(cell);
         }
         grid.replaceChildren(frag);
@@ -221,18 +462,94 @@
           ? icons.filter(
               (i) =>
                 i.name.toLowerCase().includes(q) ||
-                i.component.toLowerCase().includes(q)
+                i.component.toLowerCase().includes(q) ||
+                // Forward-compatible: search tags if the data ever carries them.
+                (i.tags && i.tags.some((t) => t.toLowerCase().includes(q)))
             )
           : icons;
         countEl.textContent = `${list.length} / ${icons.length} icons`;
         render(list);
       }
 
+      /* --- Modal ----------------------------------------------------------- */
+      function refreshModal() {
+        if (!modalIcon) return;
+        const markup =
+          modalIcon.weights[modalWeight] || modalIcon.weights.regular || "";
+        modalPreview.innerHTML = `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>`;
+        modalTitle.textContent = modalIcon.component;
+        const colorNote = currentColor ? currentColor : "currentColor";
+        modalMeta.textContent = `${modalIcon.name} · weight ${modalWeight} · ${currentSize}px · ${colorNote}`;
+        snippetCode.textContent = buildJSX(modalIcon, modalWeight);
+        // Reflect the active weight on the tabs.
+        weightTabs.querySelectorAll("button").forEach((b) =>
+          b.setAttribute("aria-pressed", String(b.dataset.weight === modalWeight))
+        );
+      }
+
+      function openModal(icon) {
+        modalIcon = icon;
+        modalWeight = currentWeight;
+        weightTabs.innerHTML = weights
+          .map((w) => `<button type="button" data-weight="${w}">${w}</button>`)
+          .join("");
+        refreshModal();
+        modal.hidden = false;
+      }
+
+      function closeModal() {
+        modal.hidden = true;
+        modalIcon = null;
+      }
+
+      weightTabs.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-weight]");
+        if (!btn) return;
+        modalWeight = btn.dataset.weight;
+        refreshModal();
+      });
+
+      modal.addEventListener("click", (e) => {
+        if (e.target.dataset.close !== undefined) closeModal();
+        const act = e.target.dataset.act;
+        if (!act || !modalIcon) return;
+        if (act === "jsx") copy(buildJSX(modalIcon, modalWeight), "Copied JSX");
+        else if (act === "import") copy(buildImport(modalIcon), "Copied import");
+        else if (act === "svg") copy(buildSVG(modalIcon, modalWeight, false), "Copied SVG");
+        else if (act === "dl-svg") downloadSVG(modalIcon, modalWeight);
+        else if (act === "dl-png") downloadPNG(modalIcon, modalWeight);
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.hidden) closeModal();
+      });
+
+      /* --- Control bar wiring --------------------------------------------- */
       search.addEventListener("input", applyFilter);
       weightEl.addEventListener("change", () => {
         currentWeight = weightEl.value;
         applyFilter();
       });
+      sizeEl.addEventListener("input", () => {
+        currentSize = Number(sizeEl.value);
+        sizeValEl.textContent = String(currentSize);
+        root.style.setProperty("--preview-size", currentSize + "px");
+        refreshModal();
+      });
+      colorEl.addEventListener("input", () => {
+        currentColor = colorEl.value;
+        root.style.setProperty("--preview-color", currentColor);
+        refreshModal();
+      });
+      colorResetEl.addEventListener("click", () => {
+        currentColor = null;
+        root.style.setProperty("--preview-color", "var(--fg)");
+        refreshModal();
+      });
+
+      // Initialise preview vars from defaults.
+      root.style.setProperty("--preview-size", currentSize + "px");
+      root.style.setProperty("--preview-color", "var(--fg)");
 
       fetch("./icons.json")
         .then((r) => {
@@ -241,9 +558,9 @@
         })
         .then((data) => {
           icons = data.icons || [];
-          // Populate the (display-only) weight selector from the data file.
-          if (Array.isArray(data.weights)) {
-            weightEl.innerHTML = data.weights
+          if (Array.isArray(data.weights) && data.weights.length) {
+            weights = data.weights;
+            weightEl.innerHTML = weights
               .map(
                 (w) =>
                   `<option value="${w}"${w === "regular" ? " selected" : ""}>${w}</option>`

@@ -67,4 +67,4 @@ Or manually: `npm run build:all && npm publish --access public`.
 
 ## License
 
-MIT © Shashi Hans. Icon artwork is derived from a third-party MIT-licensed icon set; see [`LICENSE`](LICENSE).
+MIT © Shashi Hans. Icon artwork is derived from [Phosphor Icons](https://github.com/phosphor-icons/core) (MIT © 2020 Phosphor Icons); see [`LICENSE`](LICENSE).

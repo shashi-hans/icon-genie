@@ -6,11 +6,11 @@
   "author": "Shashi Hans",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shashihans/shashihans-icons.git"
+    "url": "git+https://github.com/shashi-hans/shashihans-icons.git"
   },
-  "homepage": "https://github.com/shashihans/shashihans-icons#readme",
+  "homepage": "https://github.com/shashi-hans/shashihans-icons#readme",
   "bugs": {
-    "url": "https://github.com/shashihans/shashihans-icons/issues"
+    "url": "https://github.com/shashi-hans/shashihans-icons/issues"
   },
   "keywords": [
     "react",
