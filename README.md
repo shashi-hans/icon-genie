@@ -1,17 +1,17 @@
-# @shashihans/icons
+# @shashi-hans/icons
 
 A tree-shakeable React icon library. Each icon is one component with a `weight` prop — `thin`, `light`, `regular`, `bold`, `fill`, or `duotone`. TypeScript-first, `currentColor` by default, ESM + CJS, `react` as the only peer.
 
 ## Install
 
 ```bash
-npm install @shashihans/icons   # requires react >= 18
+npm install @shashi-hans/icons   # requires react >= 18
 ```
 
 ## Usage
 
 ```tsx
-import { Heart, User } from "@shashihans/icons";
+import { Heart, User } from "@shashi-hans/icons";
 
 <Heart weight="fill" color="crimson" size={32} />
 <User weight="duotone" aria-label="Profile" />   // labelled = role="img"; otherwise aria-hidden
@@ -31,7 +31,7 @@ All icons forward any valid `<svg>` attribute, plus:
 ## Finding an icon
 
 - **Gallery** (searchable, click-to-copy): https://shashi-hans.github.io/shashihans-icons/
-- **Editor autocomplete** on `import { } from "@shashihans/icons"`
+- **Editor autocomplete** on `import { } from "@shashi-hans/icons"`
 - **At runtime:** `generateMetadata().iconNames`
 
 ## Adding / updating icons

@@ -1,5 +1,5 @@
 {
-  "name": "@shashihans/icons",
+  "name": "@shashi-hans/icons",
   "version": "0.1.0",
   "description": "A tree-shakeable React icon library built from Phosphor Icons, with a weight prop (regular, bold, fill, duotone, light, thin).",
   "license": "MIT",
