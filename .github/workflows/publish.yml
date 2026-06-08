@@ -11,8 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Enables npm provenance (supply-chain attestation) on publish.
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +44,6 @@ jobs:
           fi
 
       - name: Publish
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
