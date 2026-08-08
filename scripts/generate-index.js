@@ -11,7 +11,9 @@ import {
   MANIFEST_PATH,
   WEIGHTS,
   extractSvgInner,
+  centerlinePaths,
 } from "./utils.js";
+import { deriveWeightInner } from "./derive-weights.js";
 
 if (!fs.existsSync(MANIFEST_PATH)) {
   console.error(
@@ -64,9 +66,29 @@ fs.writeFileSync(path.join(SRC_DIR, "index.ts"), indexSource);
 // over file://). Larger than regular-only, but it is a docs artifact only.
 fs.mkdirSync(DOCS_DIR, { recursive: true });
 const icons = manifest.map((m) => {
+  const dir = path.join(RAW_SVGS_DIR, m.name);
+
+  // Stroke-based (AI) icon: derive all six weights from its centerline paths so
+  // the gallery renders them, same as StrokeIcon does at runtime.
+  let centerline = null;
+  try {
+    centerline = centerlinePaths(dir, m.name);
+  } catch {
+    // malformed centerline -> fall through to the per-weight reader (empties)
+  }
+  if (centerline) {
+    return {
+      name: m.name,
+      component: m.component,
+      kind: "stroke",
+      centerline,
+      weights: deriveWeightInner(centerline),
+    };
+  }
+
   const weights = {};
   for (const weight of WEIGHTS) {
-    const file = path.join(RAW_SVGS_DIR, m.name, `${m.name}-${weight}.svg`);
+    const file = path.join(dir, `${m.name}-${weight}.svg`);
     try {
       weights[weight] = extractSvgInner(fs.readFileSync(file, "utf8"));
     } catch {

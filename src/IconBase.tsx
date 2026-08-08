@@ -8,11 +8,15 @@ import type { IconProps } from "./types";
 // is omitted from this component's props.
 export interface IconBaseProps extends Omit<IconProps, "weight"> {
   children: React.ReactNode;
+  // Override the <svg> fill. Defaults to `color`; stroke-based icons pass "none"
+  // so the shared color drives `stroke` on their paths instead of filling them.
+  fill?: string;
 }
 
 export function IconBase({
   size = 24,
   color = "currentColor",
+  fill,
   className,
   style,
   onClick,
@@ -26,7 +30,7 @@ export function IconBase({
       width={size}
       height={size}
       viewBox="0 0 256 256"
-      fill={color}
+      fill={fill ?? color}
       className={className}
       style={style}
       onClick={onClick}

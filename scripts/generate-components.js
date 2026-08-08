@@ -17,7 +17,26 @@ import {
   WEIGHTS,
   toPascalCase,
   extractSvgInner,
+  centerlinePaths,
 } from "./utils.js";
+
+// AI-generated icon: 1–4 centerline paths rendered by the shared StrokeIcon,
+// which derives all six weights at render time. Far smaller than embedding six
+// path-sets, and the weights stay coherent because they come from one drawing.
+function buildStrokeComponent(componentName, paths) {
+  return `import type * as React from "react";
+import { StrokeIcon } from "../StrokeIcon";
+import type { IconProps } from "../types";
+
+const D = ${JSON.stringify(paths)};
+
+export function ${componentName}(props: IconProps): React.ReactElement {
+  return <StrokeIcon d={D} {...props} />;
+}
+
+${componentName}.displayName = "${componentName}";
+`;
+}
 
 // Builds one icon component. Key choices, all for speed/size:
 //   - The <svg> wrapper lives in the shared IconBase, not here.
@@ -98,6 +117,33 @@ let skipped = 0;
 
 for (const iconName of iconDirs) {
   const dir = path.join(RAW_SVGS_DIR, iconName);
+
+  const componentName = toPascalCase(iconName);
+  if (seenComponents.has(componentName)) {
+    console.warn(
+      `  name collision: "${iconName}" and "${seenComponents.get(componentName)}" both map to ${componentName}; skipping the former.`
+    );
+    skipped++;
+    continue;
+  }
+
+  // Stroke-based (AI-generated) icon: 1–4 centerline paths -> StrokeIcon.
+  let centerline = null;
+  try {
+    centerline = centerlinePaths(dir, iconName);
+  } catch (err) {
+    console.warn(`  ${iconName}: ${err.message}`);
+  }
+  if (centerline) {
+    seenComponents.set(componentName, iconName);
+    fs.writeFileSync(
+      path.join(ICONS_OUT_DIR, `${componentName}.tsx`),
+      buildStrokeComponent(componentName, centerline)
+    );
+    manifest.push({ name: iconName, component: componentName, kind: "stroke" });
+    continue;
+  }
+
   const innerByWeight = {};
   let regularInner = null;
 
@@ -125,14 +171,6 @@ for (const iconName of iconDirs) {
     if (!innerByWeight[weight]) innerByWeight[weight] = regularInner;
   }
 
-  const componentName = toPascalCase(iconName);
-  if (seenComponents.has(componentName)) {
-    console.warn(
-      `  name collision: "${iconName}" and "${seenComponents.get(componentName)}" both map to ${componentName}; skipping the former.`
-    );
-    skipped++;
-    continue;
-  }
   seenComponents.set(componentName, iconName);
 
   fs.writeFileSync(

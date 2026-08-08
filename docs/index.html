@@ -132,8 +132,8 @@
       .empty { padding: 40px 20px; color: var(--muted); }
 
       /* --- Detail modal --------------------------------------------------- */
-      #modal[hidden] { display: none; }
-      #modal {
+      #modal[hidden], #gen-modal[hidden] { display: none; }
+      #modal, #gen-modal {
         position: fixed;
         inset: 0;
         z-index: 20;
@@ -232,6 +232,33 @@
         z-index: 30;
       }
       #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+      /* AI generate */
+      #ai-open { border-color: var(--accent); }
+      .gen-row { display: flex; gap: 8px; margin: 12px 0; }
+      .gen-row input { flex: 1; }
+      .gen-status { color: var(--muted); min-height: 18px; margin-bottom: 8px; }
+      .gen-status.error { color: #f85149; }
+      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 14px 0; }
+      .gen-weights figure { margin: 0; text-align: center; }
+      .gen-weights .gen-cell {
+        border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .gen-weights .gen-cell svg { width: 100%; height: auto; color: var(--preview-color); }
+      .gen-weights figcaption { color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+      /* Generation source picker + per-source panels */
+      .gen-tabs { display: flex; gap: 6px; margin: 12px 0 10px; flex-wrap: wrap; }
+      .gen-tabs .btn[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
+      .gen-panel[hidden] { display: none; }
+      .gen-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 6px 0 10px; }
+      .gen-note strong { color: var(--fg); font-weight: 600; }
+      .gen-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+      .gen-fields input { width: 100%; }
+      .gen-fields .full { grid-column: 1 / -1; }
+      #gen-paste { width: 100%; min-height: 110px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .gen-steps { color: var(--muted); font-size: 12px; margin: 0 0 10px; padding-left: 18px; line-height: 1.7; }
     </style>
   </head>
   <body>
@@ -255,6 +282,7 @@
           <button class="btn" id="color-reset" type="button" title="Use currentColor">reset</button>
         </span>
         <button class="btn" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle theme"></button>
+        <button class="btn" id="ai-open" type="button" title="Generate a new icon with AI">✨ Generate</button>
         <span class="count" id="count">Loading…</span>
       </div>
     </header>
@@ -279,9 +307,91 @@
       </div>
     </div>
 
+    <div id="gen-modal" hidden>
+      <div class="modal-backdrop" data-genclose></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="gen-title">
+        <button class="modal-close" type="button" data-genclose aria-label="Close">✕</button>
+        <h2 id="gen-title">✨ Generate an icon with AI</h2>
+        <div class="modal-meta">Describe an icon. The AI draws it as one to four outlines; all six weights are derived from them.</div>
+        <div class="gen-row">
+          <input id="gen-prompt" type="text" placeholder="e.g. a watering can, a shield with a check" autocomplete="off" />
+          <button class="btn" id="gen-run" type="button">Generate</button>
+        </div>
+
+        <div class="gen-tabs" role="tablist" aria-label="Generation source">
+          <button class="btn" type="button" role="tab" data-gensrc="hosted" aria-selected="true">Free (no setup)</button>
+          <button class="btn" type="button" role="tab" data-gensrc="key" aria-selected="false">Your API key</button>
+          <button class="btn" type="button" role="tab" data-gensrc="paste" aria-selected="false">Your AI chat</button>
+        </div>
+
+        <div class="gen-panel" id="gen-panel-hosted">
+          <p class="gen-note">
+            Runs on a free hosted model. No key, no account. Free models are weaker at
+            precise path geometry, so expect rougher shapes than the drawn icons.
+          </p>
+        </div>
+
+        <div class="gen-panel" id="gen-panel-key" hidden>
+          <p class="gen-note">
+            Calls your provider straight from this page, billed to your own account.
+            <strong>The key stays in this tab and is sent only to the provider you name.</strong>
+            It is held in memory and cleared when you close the page — it is never stored,
+            and never sent to this site's server.
+          </p>
+          <div class="gen-fields">
+            <input id="gen-model" type="text" placeholder="model, e.g. gpt-4.1-mini" autocomplete="off" spellcheck="false" />
+            <input id="gen-key" type="password" placeholder="API key" autocomplete="off" spellcheck="false" />
+            <input class="full" id="gen-base" type="text" placeholder="base URL (optional — inferred from the model name)" autocomplete="off" spellcheck="false" />
+          </div>
+        </div>
+
+        <div class="gen-panel" id="gen-panel-paste" hidden>
+          <p class="gen-note">
+            Uses whatever AI you are already signed in to, without this page touching your
+            account. Nothing is sent anywhere from here.
+          </p>
+          <ol class="gen-steps">
+            <li>Type a description above, then copy the prompt.</li>
+            <li>Paste it into your own ChatGPT / Claude / Gemini tab.</li>
+            <li>Paste the JSON reply back here and press Generate.</li>
+          </ol>
+          <div class="gen-row">
+            <button class="btn" id="gen-copy-prompt" type="button">Copy prompt</button>
+          </div>
+          <textarea id="gen-paste" placeholder='Paste the reply here, e.g. {"name":"watering-can","paths":["M…"]}' spellcheck="false"></textarea>
+        </div>
+
+        <div class="gen-status" id="gen-status"></div>
+        <div id="gen-result" hidden>
+          <div class="gen-weights" id="gen-weights"></div>
+          <div class="export-row">
+            <span class="ctl"><label for="gen-weight">weight</label></span>
+            <select id="gen-weight" title="Weight to export"></select>
+            <button class="btn" data-genact="svg">Copy SVG</button>
+            <button class="btn" data-genact="dl-svg">Download SVG</button>
+            <button class="btn" data-genact="dl-png">Download PNG</button>
+            <button class="btn" data-genact="dl-centerline" title="The source file this library stores: geometry only, all six weights derived from it">Download source</button>
+            <button class="btn" id="gen-contribute" data-genact="contribute" title="Open a pull request that adds this icon to the library">Contribute to library</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="toast"></div>
 
-    <script>
+    <script type="module">
+      // The safety gate and prompt come from sh-icon-genie, bundled to
+      // docs/icon-genie.js by scripts/build-gallery.js. Two of the three
+      // generation sources below never touch the hosted proxy, so this page is
+      // the only thing standing between a model's output and the DOM.
+      import {
+        buildChatPrompt,
+        generateWithKey,
+        normalizePaths,
+        parsePastedIcon,
+        toCenterlineSvg,
+      } from "./icon-genie.js";
+
       const grid = document.getElementById("grid");
       const search = document.getElementById("search");
       const countEl = document.getElementById("count");
@@ -383,9 +493,11 @@
       function buildSVG(icon, weight, forRaster) {
         const markup = icon.weights[weight] || icon.weights.regular || "";
         const fill = forRaster ? resolvedColor() : currentColor || "currentColor";
+        // `color` is set too so stroke-based (AI) icons, whose paths use
+        // stroke="currentColor", resolve to the same value as filled icons.
         return (
           `<svg xmlns="http://www.w3.org/2000/svg" width="${currentSize}" ` +
-          `height="${currentSize}" fill="${fill}" viewBox="0 0 256 256">` +
+          `height="${currentSize}" fill="${fill}" color="${fill}" viewBox="0 0 256 256">` +
           `${markup}</svg>`
         );
       }
@@ -550,6 +662,269 @@
       // Initialise preview vars from defaults.
       root.style.setProperty("--preview-size", currentSize + "px");
       root.style.setProperty("--preview-color", "var(--fg)");
+
+      /* --- AI generate ----------------------------------------------------- */
+      // Three sources produce the same thing: 1–4 centerline paths on the 256
+      // grid. All six weights are then derived client-side, mirroring
+      // scripts/derive-weights.js and src/StrokeIcon.tsx.
+      //
+      //   hosted  a free model behind icon-genie's proxy — no key, no account
+      //   key     the user's own OpenAI-compatible key, called from this tab
+      //   paste   the user's own AI chat, via copy-prompt / paste-reply
+      //
+      // A page cannot read the session of an AI service the user is signed in to
+      // elsewhere: the browser's same-origin policy exists precisely to stop
+      // that, and anything that worked around it would be credential theft. The
+      // paste bridge is how this page uses a subscription it must never see.
+      const PROXY_BASE = (
+        new URLSearchParams(location.search).get("proxy") ||
+        "https://icon-genie-proxy.shashihans.workers.dev"
+      ).replace(/\/+$/, "");
+      const GEN_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
+      const GEN_STROKE = { thin: 9, light: 13, regular: 18, bold: 27 };
+
+      const aiOpen = document.getElementById("ai-open");
+      const genModal = document.getElementById("gen-modal");
+      const genPrompt = document.getElementById("gen-prompt");
+      const genRun = document.getElementById("gen-run");
+      const genStatus = document.getElementById("gen-status");
+      const genResult = document.getElementById("gen-result");
+      const genWeightsEl = document.getElementById("gen-weights");
+      const genWeightSel = document.getElementById("gen-weight");
+      const genTabs = document.querySelectorAll("[data-gensrc]");
+      const genModelEl = document.getElementById("gen-model");
+      const genKeyEl = document.getElementById("gen-key");
+      const genBaseEl = document.getElementById("gen-base");
+      const genPasteEl = document.getElementById("gen-paste");
+      const genCopyPrompt = document.getElementById("gen-copy-prompt");
+      let genIcon = null;
+      let genSource = "hosted";
+
+      function pascal(name) {
+        const p = name
+          .split(/[^a-zA-Z0-9]+/)
+          .filter(Boolean)
+          .map((s) => s[0].toUpperCase() + s.slice(1))
+          .join("");
+        return /^[0-9]/.test(p) ? "Icon" + p : p || "Icon";
+      }
+      function strokedPaths(paths, w) {
+        return paths
+          .map(
+            (d) =>
+              `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`
+          )
+          .join("");
+      }
+      function filledPaths(paths, opacity) {
+        const op = opacity == null ? "" : ` opacity="${opacity}"`;
+        return paths.map((d) => `<path d="${d}" fill="currentColor"${op}/>`).join("");
+      }
+      function deriveWeightInner(paths) {
+        const list = Array.isArray(paths) ? paths : [paths];
+        return {
+          thin: strokedPaths(list, GEN_STROKE.thin),
+          light: strokedPaths(list, GEN_STROKE.light),
+          regular: strokedPaths(list, GEN_STROKE.regular),
+          bold: strokedPaths(list, GEN_STROKE.bold),
+          fill: filledPaths(list),
+          duotone: filledPaths(list, 0.2) + strokedPaths(list, GEN_STROKE.regular),
+        };
+      }
+
+      function selectSource(src) {
+        genSource = src;
+        for (const tab of genTabs) {
+          tab.setAttribute("aria-selected", String(tab.dataset.gensrc === src));
+        }
+        for (const id of ["hosted", "key", "paste"]) {
+          document.getElementById(`gen-panel-${id}`).hidden = id !== src;
+        }
+        genRun.textContent = src === "paste" ? "Use pasted reply" : "Generate";
+      }
+
+      function openGen() {
+        genModal.hidden = false;
+        genPrompt.focus();
+      }
+      function closeGen() {
+        genModal.hidden = true;
+      }
+      aiOpen.addEventListener("click", openGen);
+      if (location.hash === "#generate") openGen();
+
+      // Hosted proxy: the model runs server-side, so the response is already
+      // validated there. normalizePaths still runs on the way out, so every
+      // source lands in the same framed, transform-free form.
+      async function fromHosted(prompt) {
+        const res = await fetch(`${PROXY_BASE}/v1/generate-icon`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        const paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.d ? [data.d] : [];
+        if (!paths.length) throw new Error("No icon returned.");
+        return { name: data.name || "icon", paths: normalizePaths(paths.map((d) => ({ d }))) };
+      }
+
+      // The user's own key. The request goes from this tab straight to their
+      // provider; the key is read from the field at call time and never stored.
+      async function fromKey(prompt) {
+        const model = genModelEl.value.trim();
+        const apiKey = genKeyEl.value;
+        if (!model) throw new Error("Enter the model name.");
+        if (!apiKey.trim()) throw new Error("Enter your API key.");
+        const icon = await generateWithKey(
+          { model, apiKey: apiKey.trim(), baseURL: genBaseEl.value.trim(), label: model },
+          prompt
+        );
+        return { name: icon.name, paths: icon.paths };
+      }
+
+      // The user's own AI chat. parsePastedIcon runs the full gate — path syntax,
+      // path count, framing — because this text came straight from a chat window.
+      function fromPaste(prompt) {
+        const text = genPasteEl.value.trim();
+        if (!text) throw new Error("Paste the reply from your AI chat first.");
+        const icon = parsePastedIcon(text, prompt);
+        return { name: icon.name, paths: icon.paths };
+      }
+
+      async function runGenerate() {
+        const prompt = genPrompt.value.trim();
+        if (!prompt) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = "Enter a description first.";
+          return;
+        }
+        genRun.disabled = true;
+        genResult.hidden = true;
+        genStatus.className = "gen-status";
+        genStatus.textContent =
+          genSource === "paste" ? "Reading the pasted reply…" : "Generating… the AI is drawing the outlines.";
+        try {
+          const out =
+            genSource === "key" ? await fromKey(prompt)
+            : genSource === "paste" ? fromPaste(prompt)
+            : await fromHosted(prompt);
+          genIcon = {
+            name: out.name || "icon",
+            component: pascal(out.name || "icon"),
+            kind: "stroke",
+            generated: true,
+            centerline: out.paths,
+            weights: deriveWeightInner(out.paths),
+          };
+          renderGen();
+          const count = out.paths.length;
+          genStatus.textContent =
+            `Generated "${genIcon.name}" (${count} path${count === 1 ? "" : "s"}). ` +
+            `Pick a weight to export, or contribute it to the library.`;
+        } catch (err) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = `Couldn't generate: ${err.message}`;
+        } finally {
+          genRun.disabled = false;
+        }
+      }
+      function renderGen() {
+        genWeightsEl.innerHTML = GEN_WEIGHTS.map(
+          (w) =>
+            `<figure><div class="gen-cell"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${genIcon.weights[w]}</svg></div><figcaption>${w}</figcaption></figure>`
+        ).join("");
+        genWeightSel.innerHTML = GEN_WEIGHTS.map(
+          (w) => `<option value="${w}"${w === "regular" ? " selected" : ""}>${w}</option>`
+        ).join("");
+        genResult.hidden = false;
+      }
+
+      // The library's own source format: geometry only, no paint attributes.
+      // Dropping this at raw-svgs/<name>/<name>.centerline.svg and running
+      // `npm run build:icons` is all it takes to add the icon by hand — the route
+      // to take when the hosted contribution endpoint is unavailable.
+      function downloadCenterline(icon) {
+        const svg = toCenterlineSvg(icon.centerline);
+        download(`${icon.name}.centerline.svg`, new Blob([svg + "\n"], { type: "image/svg+xml" }));
+        showToast(`Saved ${icon.name}.centerline.svg`);
+      }
+
+      async function contributeIcon() {
+        if (!genIcon) return;
+        const btn = document.getElementById("gen-contribute");
+        btn.disabled = true;
+        genStatus.className = "gen-status";
+        genStatus.textContent = "Opening a pull request to the library…";
+        try {
+          const res = await fetch(`${PROXY_BASE}/v1/contribute-icon`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              name: genIcon.name,
+              paths: genIcon.centerline,
+              prompt: genPrompt.value.trim(),
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          genStatus.replaceChildren(
+            document.createTextNode("Pull request opened — a maintainer will review it: ")
+          );
+          const a = document.createElement("a");
+          a.href = data.url;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = data.url;
+          genStatus.appendChild(a);
+          showToast("Contribution PR opened");
+        } catch (err) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = `Couldn't contribute: ${err.message}`;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      genRun.addEventListener("click", runGenerate);
+      genPrompt.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") runGenerate();
+      });
+      for (const tab of genTabs) {
+        tab.addEventListener("click", () => selectSource(tab.dataset.gensrc));
+      }
+      selectSource(genSource);
+      genCopyPrompt.addEventListener("click", () => {
+        const prompt = genPrompt.value.trim();
+        if (!prompt) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = "Enter a description first.";
+          return;
+        }
+        copy(buildChatPrompt(prompt), "Prompt copied — paste it into your AI chat");
+      });
+      // The key lives in the field only; drop it as soon as the dialog closes so
+      // it does not sit in the DOM for the rest of the session.
+      genModal.addEventListener("click", (e) => {
+        if (e.target.dataset.genclose !== undefined) {
+          genKeyEl.value = "";
+          return closeGen();
+        }
+        const act = e.target.dataset.genact;
+        if (!act || !genIcon) return;
+        const w = genWeightSel.value;
+        if (act === "svg") copy(buildSVG(genIcon, w, false), "Copied SVG");
+        else if (act === "dl-svg") downloadSVG(genIcon, w);
+        else if (act === "dl-png") downloadPNG(genIcon, w);
+        else if (act === "dl-centerline") downloadCenterline(genIcon);
+        else if (act === "contribute") contributeIcon();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !genModal.hidden) {
+          genKeyEl.value = "";
+          closeGen();
+        }
+      });
 
       fetch("./icons.json")
         .then((r) => {

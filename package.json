@@ -40,7 +40,7 @@
   ],
   "scripts": {
     "import:phosphor": "node scripts/import-phosphor.js",
-    "build:icons": "node scripts/optimize-svgs.js && node scripts/generate-components.js && node scripts/generate-index.js",
+    "build:icons": "node scripts/optimize-svgs.js && node scripts/generate-components.js && node scripts/generate-index.js && node scripts/build-gallery.js",
     "build": "tsup",
     "build:all": "npm run build:icons && npm run build",
     "clean": "rimraf dist src/icons",
@@ -52,8 +52,10 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
+    "esbuild": "^0.25.0",
     "react": "^18.3.1",
     "rimraf": "^6.0.1",
+    "sh-icon-genie": "^0.3.0",
     "svgo": "^3.3.2",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3"
