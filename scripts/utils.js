@@ -41,11 +41,13 @@ export function extractSvgInner(svg) {
 }
 
 // A centerline icon carries at most this many paths — one per disconnected line
-// (a clock is a ring plus its hands). Matches the generator's own cap.
-export const MAX_CENTERLINE_PATHS = 4;
+// (a clock is a ring plus its hands; a TV remote is a body plus its buttons).
+// Matches MAX_PATHS in sh-icon-genie, which enforces the same ceiling upstream.
+export const MAX_CENTERLINE_PATHS = 8;
 
 // AI-generated (stroke-based) icons ship as one "<name>.centerline.svg" holding
-// 1–4 <path d="…"> elements and no paint attributes. Returns those path strings,
+// up to MAX_CENTERLINE_PATHS <path d="…"> elements and no paint attributes.
+// Returns those path strings,
 // or null when the icon is a normal hand-drawn six-weight set. Throws if the file
 // exists but is malformed.
 //

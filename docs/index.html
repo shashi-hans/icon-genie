@@ -17,6 +17,12 @@
         --fg: #e6edf3;
         --muted: #8b949e;
         --accent: #58a6ff;
+        /* Success feedback. Theme-dependent because a green legible on the dark
+           background sits at about 2:1 against the light theme's white. */
+        --ok: #3fb950;
+        /* Every control in the header shares this height so the bar reads as
+           one row rather than a set of differently-sized boxes. */
+        --control-h: 38px;
         /* Live preview knobs, driven by the control bar. */
         --preview-size: 32px;
         --preview-color: var(--fg);
@@ -28,8 +34,13 @@
         --fg: #1f2328;
         --muted: #656d76;
         --accent: #0969da;
+        --ok: #1a7f37;
       }
       * { box-sizing: border-box; }
+      /* An author `display` rule outranks the UA stylesheet's `[hidden]`, so any
+         element given a display value here would ignore the attribute. Guard it
+         once, globally, rather than per-selector. */
+      [hidden] { display: none !important; }
       body {
         margin: 0;
         font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -39,31 +50,35 @@
       header {
         position: sticky;
         top: 0;
+        /* Positioning context for the pinned identity group. */
+        isolation: isolate;
         background: var(--bg);
         border-bottom: 1px solid var(--border);
         padding: 16px 20px;
         z-index: 10;
       }
-      h1 { margin: 0 0 2px; font-size: 18px; text-align: center; }
+      h1 { margin: 0 0 2px; font-size: 18px; text-align: center; padding: 0 12px; }
       .tagline { color: var(--fg); margin-bottom: 2px; text-align: center; }
       .sub { color: var(--muted); margin-bottom: 12px; }
       .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       input[type="search"] {
         flex: 1;
         min-width: 200px;
+        height: var(--control-h);
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--fg);
-        padding: 10px 12px;
+        padding: 0 12px;
         border-radius: 8px;
         font-size: 14px;
       }
       select,
       .ctl {
+        height: var(--control-h);
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--fg);
-        padding: 10px 12px;
+        padding: 0 12px;
         border-radius: 8px;
       }
       .ctl {
@@ -75,7 +90,7 @@
       .ctl label { color: var(--muted); font-size: 12px; }
       .ctl input[type="range"] { width: 100px; accent-color: var(--accent); }
       .ctl input[type="color"] {
-        width: 28px;
+        width: 34px;
         height: 24px;
         padding: 0;
         border: 1px solid var(--border);
@@ -85,10 +100,14 @@
       }
       .ctl .size-val { color: var(--fg); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
       .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--control-h);
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--fg);
-        padding: 8px 12px;
+        padding: 0 12px;
         border-radius: 8px;
         cursor: pointer;
         font-size: 13px;
@@ -96,7 +115,11 @@
         white-space: nowrap;
       }
       .btn:hover { border-color: var(--accent); }
+      /* The shared height is for the header bar; dialogs pack more buttons into
+         less room, so they opt back out. */
+      .modal-card .btn, .confirm .btn, .gen-tabs .btn { height: auto; padding: 8px 12px; }
       .count { color: var(--muted); white-space: nowrap; }
+      #visitors::before { content: "·"; margin-right: 8px; opacity: 0.6; }
       main {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -132,8 +155,9 @@
       .empty { padding: 40px 20px; color: var(--muted); }
 
       /* --- Detail modal --------------------------------------------------- */
-      #modal[hidden], #gen-modal[hidden] { display: none; }
-      #modal, #gen-modal {
+      /* Every dialog on the page, so a new one is centred by default rather than
+         landing in the document flow. */
+      #modal, #gen-modal, #login-modal, #hist-modal {
         position: fixed;
         inset: 0;
         z-index: 20;
@@ -189,6 +213,17 @@
       }
       .modal-card h2 { margin: 0 0 2px; font-size: 18px; }
       .modal-meta { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+      /* Credit line for a community icon. Sits above the weight tabs so it reads
+         as part of the icon's identity rather than as export detail. */
+      .modal-credit {
+        display: flex; align-items: center; gap: 8px;
+        margin: 0 0 14px; padding: 8px 10px;
+        border: 1px solid var(--border); border-left: 3px solid #3fb950;
+        border-radius: 8px; font-size: 13px;
+      }
+      .modal-credit[hidden] { display: none; }
+      .modal-credit .label { color: var(--muted); }
+      .modal-credit .value { font-weight: 600; word-break: break-word; }
       .weight-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
       .weight-tabs button {
         background: var(--panel);
@@ -215,6 +250,30 @@
         white-space: pre;
       }
       .export-row { display: flex; flex-wrap: wrap; gap: 8px; }
+      /* Admin controls on a community icon, shown only to a logged-in admin.
+         Server-side authorization is what actually protects these. */
+      .admin-actions {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--border);
+      }
+      .admin-actions[hidden] { display: none; }
+      .admin-actions .label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+      }
+      .btn.danger { border-color: #6e2b28; color: #f85149; }
+      .btn.danger:hover { border-color: #f85149; }
+      /* Momentary "done" state on a button's own label. */
+      .btn.ok { color: var(--ok); }
+      .confirm {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin: 0 0 12px; padding: 8px 10px; border-radius: 8px;
+        border: 1px solid #b0892b; color: #e3b341; font-size: 12px;
+      }
+      .confirm[hidden] { display: none; }
+      .confirm input {
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 6px 9px; border-radius: 6px; font-size: 13px; width: 180px;
+      }
 
       #toast {
         position: fixed;
@@ -234,15 +293,19 @@
       #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
       /* AI generate */
+      /* Wider than the icon-detail dialog: this one stacks a prompt, a source
+         picker, a paste box, six previews and two button rows, and the extra
+         width lets those sit side by side instead of scrolling. */
+      #gen-modal .modal-card { width: min(960px, 100%); }
       #ai-open { border-color: var(--accent); }
       .gen-row { display: flex; gap: 8px; margin: 12px 0; }
       .gen-row input { flex: 1; }
       .gen-status { color: var(--muted); min-height: 18px; margin-bottom: 8px; }
       .gen-status.error { color: #f85149; }
-      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 14px 0; }
+      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 0 12px; }
       .gen-weights figure { margin: 0; text-align: center; }
       .gen-weights .gen-cell {
-        border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+        border: 1px solid var(--border); border-radius: 8px; padding: 8px;
         display: flex; align-items: center; justify-content: center;
       }
       .gen-weights .gen-cell svg { width: 100%; height: auto; color: var(--preview-color); }
@@ -252,18 +315,147 @@
       .gen-tabs { display: flex; gap: 6px; margin: 12px 0 10px; flex-wrap: wrap; }
       .gen-tabs .btn[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
       .gen-panel[hidden] { display: none; }
-      .gen-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 6px 0 10px; }
+      .gen-note { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 6px 0 8px; }
       .gen-note strong { color: var(--fg); font-weight: 600; }
       .gen-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
       .gen-fields input { width: 100%; }
       .gen-fields .full { grid-column: 1 / -1; }
-      #gen-paste { width: 100%; min-height: 110px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-      .gen-steps { color: var(--muted); font-size: 12px; margin: 0 0 10px; padding-left: 18px; line-height: 1.7; }
+      #gen-paste { width: 100%; min-height: 88px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .gen-remember { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 10px; cursor: pointer; }
+      .gen-remember input { margin-right: 6px; vertical-align: middle; }
+      .gen-remember span { display: block; margin: 2px 0 0 22px; opacity: 0.8; }
+
+      /* Identity + history */
+      /* Pinned to the header's top-right corner rather than sitting in the
+         controls row, where it wrapped onto a second line. The header is sticky,
+         so this stays in the corner as the grid scrolls. Items are baseline-
+         aligned on one row, so the badge lines up with the buttons beside it. */
+      .who {
+        position: absolute;
+        top: 16px;
+        right: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      /* Below this the centred title and the corner group would collide, so the
+         group returns to the normal flow. */
+      @media (max-width: 700px) {
+        .who { position: static; justify-content: flex-end; width: 100%; margin-top: 10px; }
+      }
+      .who-badge {
+        display: inline-flex; align-items: center; gap: 8px; height: var(--control-h);
+        padding: 0 12px; background: var(--panel);
+        border: 1px solid var(--border); border-radius: 8px;
+        font-size: 13px; color: var(--muted); white-space: nowrap; cursor: pointer;
+      }
+      .who-badge:hover { border-color: var(--accent); }
+      .who-badge strong { color: var(--fg); font-weight: 600; margin-left: 4px; }
+      .who-badge.admin strong { color: var(--accent); }
+      .who-badge .caret { color: var(--muted); font-size: 10px; }
+      .who-badge[aria-expanded="true"] { border-color: var(--accent); }
+
+      .who-menu {
+        position: absolute; top: calc(100% + 6px); right: 0; z-index: 15;
+        min-width: 100%;
+        display: flex; flex-direction: column;
+        background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+        padding: 6px; gap: 2px;
+      }
+      .who-item {
+        background: none; border: 0; border-radius: 6px;
+        padding: 8px 10px; text-align: left; white-space: nowrap;
+        color: var(--fg); font: inherit; font-size: 13px; cursor: pointer;
+        text-decoration: none;
+      }
+      .who-item:hover { background: var(--panel); color: var(--accent); }
+      .who-badge.admin { border-color: var(--accent); color: var(--accent); }
+      #store-warning {
+        display: none; margin: 0 auto 12px; max-width: 900px; padding: 8px 12px;
+        border: 1px solid #b0892b; border-radius: 8px; color: #e3b341; font-size: 12px;
+      }
+      #store-warning.show { display: block; }
+      #load-note {
+        max-width: 900px; margin: 0 auto; padding: 0 20px 4px;
+        color: var(--muted); font-size: 12px;
+      }
+      .hist-list { display: grid; gap: 8px; margin: 12px 0; }
+      .hist-row {
+        display: flex; align-items: center; gap: 12px;
+        border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+      }
+      .hist-row svg { width: 28px; height: 28px; flex: none; color: var(--preview-color); }
+      .hist-name { font-weight: 600; }
+      .hist-meta { color: var(--muted); font-size: 12px; }
+      .hist-row .grow { flex: 1; min-width: 0; }
+      .tag { font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
+      .tag.approved { border-color: #3fb950; color: #3fb950; }
+      .tag.rejected { border-color: #f85149; color: #f85149; }
+      .tag.pending { border-color: #e3b341; color: #e3b341; }
+      .login-fields { display: grid; gap: 8px; margin: 12px 0; }
+      /* Community icons: approved and shown, but not yet in the published package. */
+      .cell.contributed { position: relative; border-color: #2d6a4f; }
+      .cell.contributed:hover { border-color: #3fb950; }
+      .cell-tag {
+        position: absolute; top: 6px; right: 6px;
+        font-size: 9px; letter-spacing: 0.03em; text-transform: uppercase;
+        color: #3fb950; border: 1px solid #2d6a4f; border-radius: 999px; padding: 1px 5px;
+      }
+      .gen-steps { color: var(--muted); font-size: 12px; margin: 0 0 8px; padding-left: 18px; line-height: 1.55; }
+
+      /* Two columns once the dialog is wide enough: describing an icon on the
+         left, the result and its actions on the right. Stacks below 820px, where
+         side-by-side columns would be too narrow to read. */
+      .gen-body { display: grid; gap: 0 22px; align-items: start; }
+      @media (min-width: 820px) {
+        #gen-modal .modal-card .gen-body { grid-template-columns: 1fr 1fr; }
+      }
+      .gen-right[hidden] { display: none; }
+
+      /* Contribute block: the credit field sits directly above its button. */
+      .contribute-block {
+        margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+        display: grid; gap: 6px; justify-items: start;
+      }
+      .contribute-label { color: var(--fg); font-size: 13px; }
+      .contribute-label span {
+        display: block; color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 2px;
+      }
+      .contribute-block input {
+        width: 100%; max-width: 320px;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 9px 12px; border-radius: 8px; font-size: 14px;
+      }
+      .confirm-anon {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        border: 1px solid #b0892b; border-radius: 8px; padding: 8px 10px;
+        color: #e3b341; font-size: 12px;
+      }
+      .confirm-anon[hidden] { display: none; }
     </style>
   </head>
   <body>
     <header>
-      <h1>Shashi's Icon Gallery</h1>
+      <div class="who">
+        <button
+          class="who-badge"
+          id="who-toggle"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="who-menu"
+        >
+          <span id="who-label">Welcome</span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="who-menu" id="who-menu" role="menu" hidden>
+          <button class="who-item" id="hist-open" type="button" role="menuitem">History</button>
+          <a class="who-item" id="admin-link" href="./admin.html" role="menuitem" hidden>Icon approval</a>
+          <button class="who-item" id="login-open" type="button" role="menuitem">Log in</button>
+          <button class="who-item" id="logout-btn" type="button" role="menuitem" hidden>Log out</button>
+        </div>
+      </div>
+      <h1>Icon Genie Gallery</h1>
       <div class="tagline">Free icons for all your needs.</div>
       <div class="sub">Click any icon to customize, copy a snippet, or download.</div>
       <div class="controls">
@@ -284,8 +476,16 @@
         <button class="btn" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle theme"></button>
         <button class="btn" id="ai-open" type="button" title="Generate a new icon with AI">✨ Generate</button>
         <span class="count" id="count">Loading…</span>
+        <span class="count" id="visitors" hidden></span>
       </div>
     </header>
+
+    <div id="store-warning">
+      The server is running without a database, so submissions and history are kept in
+      memory only and disappear when the instance recycles. Connect a store in
+      <code>server/lib/store.js</code> before relying on either.
+    </div>
+    <div id="load-note" hidden></div>
     <main id="grid"><div class="empty">Loading icons…</div></main>
 
     <div id="modal" hidden>
@@ -295,8 +495,25 @@
         <div class="modal-preview" id="modal-preview"></div>
         <h2 id="modal-title"></h2>
         <div class="modal-meta" id="modal-meta"></div>
+        <div class="modal-credit" id="modal-credit" hidden></div>
         <div class="weight-tabs" id="weight-tabs"></div>
         <pre class="snippet"><code id="snippet-code"></code></pre>
+        <div class="admin-actions" id="modal-admin" hidden>
+          <span class="label">Admin</span>
+          <button class="btn" type="button" data-adminact="rename">Change contributor</button>
+          <button class="btn danger" type="button" data-adminact="delete">Delete from gallery</button>
+        </div>
+        <div class="confirm" id="modal-rename" hidden>
+          <span>New contributor name:</span>
+          <input id="modal-rename-input" maxlength="20" />
+          <button class="btn" type="button" data-adminact="rename-save">Save name</button>
+          <button class="btn" type="button" data-adminact="cancel">Cancel</button>
+        </div>
+        <div class="confirm" id="modal-delete" hidden>
+          <span id="modal-delete-text"></span>
+          <button class="btn danger" type="button" data-adminact="delete-confirm">Delete for good</button>
+          <button class="btn" type="button" data-adminact="cancel">Cancel</button>
+        </div>
         <div class="export-row">
           <button class="btn" data-act="jsx">Copy JSX</button>
           <button class="btn" data-act="import">Copy import</button>
@@ -311,58 +528,75 @@
       <div class="modal-backdrop" data-genclose></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="gen-title">
         <button class="modal-close" type="button" data-genclose aria-label="Close">✕</button>
-        <h2 id="gen-title">✨ Generate an icon with AI</h2>
+        <h2 id="gen-title">🧞 Generate an icon with Icon Genie</h2>
         <div class="modal-meta">Describe an icon. The AI draws it as one to four outlines; all six weights are derived from them.</div>
-        <div class="gen-row">
+        <div class="gen-body">
+         <div class="gen-left">
+        <!-- On the paste tab, Generate moves down beside the reply box and
+             Copy prompt takes this slot — it acts on the description above it.
+             selectSource() relocates the two buttons; there is only ever one of
+             each, so both keep their single listener. -->
+        <div class="gen-row" id="gen-row-top">
           <input id="gen-prompt" type="text" placeholder="e.g. a watering can, a shield with a check" autocomplete="off" />
           <button class="btn" id="gen-run" type="button">Generate</button>
+          <button class="btn" id="gen-copy-prompt" type="button" hidden>Copy prompt</button>
         </div>
 
         <div class="gen-tabs" role="tablist" aria-label="Generation source">
           <button class="btn" type="button" role="tab" data-gensrc="hosted" aria-selected="true">Free (no setup)</button>
           <button class="btn" type="button" role="tab" data-gensrc="key" aria-selected="false">Your API key</button>
-          <button class="btn" type="button" role="tab" data-gensrc="paste" aria-selected="false">Your AI chat</button>
+          <button class="btn" type="button" role="tab" data-gensrc="paste" aria-selected="false">Your AI chat (manual)</button>
         </div>
 
         <div class="gen-panel" id="gen-panel-hosted">
           <p class="gen-note">
-            Runs on a free hosted model. No key, no account. Free models are weaker at
-            precise path geometry, so expect rougher shapes than the drawn icons.
+            Runs on a free hosted model. No key, no account. Your description is sent to
+            this site's server and on to the model host; nothing else about you goes with
+            it. Free models are weaker at precise path geometry, so expect rougher shapes
+            than the drawn icons.
           </p>
         </div>
 
         <div class="gen-panel" id="gen-panel-key" hidden>
           <p class="gen-note">
-            Calls your provider straight from this page, billed to your own account.
-            <strong>The key stays in this tab and is sent only to the provider you name.</strong>
-            It is held in memory and cleared when you close the page — it is never stored,
-            and never sent to this site's server.
+            Calls your provider straight from this page, billed to your own account. Type a
+            description, press Generate, get an icon — no copy-paste.
+            <strong>The key is sent only to the provider you name, never to this site's server.</strong>
+            By default it lives in this field and is dropped when you close the dialog; tick
+            Remember below to keep it in this browser instead.
           </p>
           <div class="gen-fields">
             <input id="gen-model" type="text" placeholder="model, e.g. gpt-4.1-mini" autocomplete="off" spellcheck="false" />
             <input id="gen-key" type="password" placeholder="API key" autocomplete="off" spellcheck="false" />
             <input class="full" id="gen-base" type="text" placeholder="base URL (optional — inferred from the model name)" autocomplete="off" spellcheck="false" />
           </div>
+          <label class="gen-remember">
+            <input id="gen-remember" type="checkbox" />
+            Remember on this device, so generating is one step next time.
+            <span>Stores the key in this browser's localStorage. Any script running on this
+            page could then read it — leave it off on a shared or untrusted machine.</span>
+          </label>
         </div>
 
         <div class="gen-panel" id="gen-panel-paste" hidden>
           <p class="gen-note">
-            Uses whatever AI you are already signed in to, without this page touching your
-            account. Nothing is sent anywhere from here.
+            Fallback for when you have no key and the free model is unavailable. Uses whatever
+            AI you are already signed in to, without this page touching your account — which is
+            also why it cannot be automated: a page cannot drive a session it is not allowed to
+            read. Nothing is sent anywhere from here.
           </p>
           <ol class="gen-steps">
             <li>Type a description above, then copy the prompt.</li>
             <li>Paste it into your own ChatGPT / Claude / Gemini tab.</li>
-            <li>Paste the JSON reply back here and press Generate.</li>
+            <li>Paste the JSON reply below, then press <strong>Generate</strong>.</li>
           </ol>
-          <div class="gen-row">
-            <button class="btn" id="gen-copy-prompt" type="button">Copy prompt</button>
-          </div>
+          <div class="gen-row" id="gen-row-paste"></div>
           <textarea id="gen-paste" placeholder='Paste the reply here, e.g. {"name":"watering-can","paths":["M…"]}' spellcheck="false"></textarea>
         </div>
 
         <div class="gen-status" id="gen-status"></div>
-        <div id="gen-result" hidden>
+         </div>
+         <div class="gen-right" id="gen-result" hidden>
           <div class="gen-weights" id="gen-weights"></div>
           <div class="export-row">
             <span class="ctl"><label for="gen-weight">weight</label></span>
@@ -371,9 +605,57 @@
             <button class="btn" data-genact="dl-svg">Download SVG</button>
             <button class="btn" data-genact="dl-png">Download PNG</button>
             <button class="btn" data-genact="dl-centerline" title="The source file this library stores: geometry only, all six weights derived from it">Download source</button>
-            <button class="btn" id="gen-contribute" data-genact="contribute" title="Open a pull request that adds this icon to the library">Contribute to library</button>
+          </div>
+
+          <!-- The name sits immediately above the button it affects, so it is
+               read as part of contributing rather than as another export option. -->
+          <div class="contribute-block">
+            <label class="contribute-label" for="gen-contributor">
+              Your name, to credit you on the icon
+              <span>Shown publicly in the icon's details if approved. Max 20 characters, and
+              optional — nothing else about you is collected.</span>
+            </label>
+            <input id="gen-contributor" type="text" maxlength="20" placeholder="e.g. Shashi Hans" autocomplete="name" />
+            <button class="btn" id="gen-contribute" data-genact="contribute" title="Submit this icon for an admin to review and add to the library">Contribute to library</button>
+            <div class="confirm-anon" id="gen-anon-confirm" hidden>
+              <span>No name entered. Contribute without one?</span>
+              <button class="btn" type="button" id="gen-anon-yes">Contribute as Anonymous</button>
+              <button class="btn" type="button" id="gen-anon-no">Add my name</button>
+            </div>
           </div>
         </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="login-modal" hidden>
+      <div class="modal-backdrop" data-loginclose></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
+        <button class="modal-close" type="button" data-loginclose aria-label="Close">✕</button>
+        <h2 id="login-title">Admin log in</h2>
+        <div class="modal-meta">
+          Browsing and generating need no account — you are a guest by default. Logging in is
+          only for reviewing the icons people contribute.
+        </div>
+        <form class="login-fields" id="login-form">
+          <input id="login-password" type="password" placeholder="Admin password" autocomplete="current-password" />
+          <button class="btn" id="login-submit" type="submit">Log in</button>
+        </form>
+        <div class="gen-status" id="login-status"></div>
+      </div>
+    </div>
+
+    <div id="hist-modal" hidden>
+      <div class="modal-backdrop" data-histclose></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hist-title">
+        <button class="modal-close" type="button" data-histclose aria-label="Close">✕</button>
+        <h2 id="hist-title">Your history</h2>
+        <div class="modal-meta" id="hist-meta">
+          Icons you generated or contributed, kept against a cookie on this browser. Clearing
+          cookies starts a new, empty history.
+        </div>
+        <div class="hist-list" id="hist-list"></div>
+        <div class="gen-status" id="hist-status"></div>
       </div>
     </div>
 
@@ -381,13 +663,12 @@
 
     <script type="module">
       // The safety gate and prompt come from sh-icon-genie, bundled to
-      // docs/icon-genie.js by scripts/build-gallery.js. Two of the three
-      // generation sources below never touch the hosted proxy, so this page is
-      // the only thing standing between a model's output and the DOM.
+      // docs/icon-genie.js by scripts/build-gallery.js. Every generation source
+      // below returns raw model output, so this page is the only thing standing
+      // between a model's drawing and the DOM.
       import {
         buildChatPrompt,
         generateWithKey,
-        normalizePaths,
         parsePastedIcon,
         toCenterlineSvg,
       } from "./icon-genie.js";
@@ -409,6 +690,7 @@
       const modalPreview = document.getElementById("modal-preview");
       const modalTitle = document.getElementById("modal-title");
       const modalMeta = document.getElementById("modal-meta");
+      const modalCredit = document.getElementById("modal-credit");
       const weightTabs = document.getElementById("weight-tabs");
       const snippetCode = document.getElementById("snippet-code");
 
@@ -428,6 +710,8 @@
         const isLight = theme === "light";
         root.setAttribute("data-theme", isLight ? "light" : "dark");
         themeToggle.textContent = isLight ? "🌙 Dark" : "☀️ Light";
+        // A theme swap changes --fg, so an unset colour resolves differently.
+        if (!currentColor && typeof syncColorSwatch === "function") syncColorSwatch();
       }
       function initTheme() {
         let saved = null;
@@ -459,10 +743,19 @@
         clearTimeout(showToast._t);
         showToast._t = setTimeout(() => toast.classList.remove("show"), 1500);
       }
+      // Resolves to whether the text reached the clipboard, so a caller can also
+      // confirm on the button it was clicked from. Callers that only need the
+      // toast can ignore the result.
       function copy(text, label) {
-        navigator.clipboard.writeText(text).then(
-          () => showToast(label),
-          () => showToast("Copy failed")
+        return navigator.clipboard.writeText(text).then(
+          () => {
+            showToast(label);
+            return true;
+          },
+          () => {
+            showToast("Copy failed");
+            return false;
+          }
         );
       }
 
@@ -556,12 +849,15 @@
         const frag = document.createDocumentFragment();
         for (const icon of list) {
           const cell = document.createElement("div");
-          cell.className = "cell";
-          cell.title = `Click for ${icon.component} options`;
-          const markup = icon.weights[currentWeight] || icon.weights.regular || "";
+          cell.className = icon.contributed ? "cell contributed" : "cell";
+          cell.title = icon.contributed
+            ? `${icon.component} — community icon, approved but not in the package yet`
+            : `Click for ${icon.component} options`;
+          const markup = markupFor(icon, currentWeight);
           cell.innerHTML =
             `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>` +
-            `<span class="name">${icon.name}</span>`;
+            `<span class="name">${icon.name}</span>` +
+            (icon.contributed ? `<span class="cell-tag">new</span>` : "");
           cell.addEventListener("click", () => openModal(icon));
           frag.appendChild(cell);
         }
@@ -583,16 +879,52 @@
         render(list);
       }
 
+      /**
+       * The markup for a weight, from whichever payload has arrived.
+       *
+       * The first response carries only `regular` as a flat field, so the grid can
+       * paint before the multi-megabyte full catalogue lands. Until it does, every
+       * weight falls back to regular rather than rendering an empty cell.
+       */
+      function markupFor(icon, weight) {
+        if (icon.weights) return icon.weights[weight] || icon.weights.regular || "";
+        return icon.regular || "";
+      }
+
+      /** True once an icon carries all six weights. */
+      const isFullyLoaded = (icon) => Boolean(icon?.weights);
+
       /* --- Modal ----------------------------------------------------------- */
       function refreshModal() {
         if (!modalIcon) return;
-        const markup =
-          modalIcon.weights[modalWeight] || modalIcon.weights.regular || "";
+        const markup = markupFor(modalIcon, modalWeight);
         modalPreview.innerHTML = `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>`;
         modalTitle.textContent = modalIcon.component;
         const colorNote = currentColor ? currentColor : "currentColor";
         modalMeta.textContent = `${modalIcon.name} · weight ${modalWeight} · ${currentSize}px · ${colorNote}`;
-        snippetCode.textContent = buildJSX(modalIcon, modalWeight);
+
+        // The credit gets its own labelled line rather than being buried in the
+        // meta string. The name is set with textContent, never innerHTML: it is
+        // text a stranger supplied and must never be parsed as markup.
+        modalCredit.hidden = !modalIcon.contributed;
+        if (modalIcon.contributed) {
+          modalCredit.replaceChildren();
+          const label = document.createElement("span");
+          label.className = "label";
+          label.textContent = "Contributor :";
+          const value = document.createElement("span");
+          value.className = "value";
+          value.textContent = modalIcon.contributor || "Anonymous";
+          modalCredit.append(label, value);
+        }
+        snippetCode.textContent = modalIcon.contributed
+          ? buildSVG(modalIcon, modalWeight, false)
+          : buildJSX(modalIcon, modalWeight);
+        // Hide the two package-only actions for an icon the package lacks.
+        for (const btn of modal.querySelectorAll('[data-act="jsx"], [data-act="import"]')) {
+          btn.hidden = Boolean(modalIcon.contributed);
+        }
+        refreshModalAdmin();
         // Reflect the active weight on the tabs.
         weightTabs.querySelectorAll("button").forEach((b) =>
           b.setAttribute("aria-pressed", String(b.dataset.weight === modalWeight))
@@ -601,9 +933,15 @@
 
       function openModal(icon) {
         modalIcon = icon;
-        modalWeight = currentWeight;
+        modalWeight = isFullyLoaded(icon) ? currentWeight : "regular";
+        // Offering weights we do not have yet would show regular under five other
+        // labels, so they stay disabled until the full catalogue arrives.
+        const ready = isFullyLoaded(icon);
         weightTabs.innerHTML = weights
-          .map((w) => `<button type="button" data-weight="${w}">${w}</button>`)
+          .map(
+            (w) =>
+              `<button type="button" data-weight="${w}"${ready ? "" : " disabled title='Still loading'"}>${w}</button>`
+          )
           .join("");
         refreshModal();
         modal.hidden = false;
@@ -636,6 +974,74 @@
         if (e.key === "Escape" && !modal.hidden) closeModal();
       });
 
+      /* --- Admin actions on a community icon -------------------------------- */
+      // Reachable from the gallery as well as the review page: once an icon is
+      // live, the gallery is where you notice a wrong credit or a bad drawing.
+      // Visibility here is presentation only — the API re-checks the admin
+      // session on every call, so a guest forcing these buttons visible gets 403.
+      const modalAdmin = document.getElementById("modal-admin");
+      const modalRename = document.getElementById("modal-rename");
+      const modalRenameInput = document.getElementById("modal-rename-input");
+      const modalDelete = document.getElementById("modal-delete");
+      const modalDeleteText = document.getElementById("modal-delete-text");
+
+      function showModalConfirm(which) {
+        modalRename.hidden = which !== "rename";
+        modalDelete.hidden = which !== "delete";
+        if (which === "rename") modalRenameInput.focus();
+      }
+
+      function refreshModalAdmin() {
+        const can = me.role === "admin" && modalIcon?.contributed && modalIcon?.submissionId;
+        modalAdmin.hidden = !can;
+        showModalConfirm(null);
+        if (can) {
+          modalRenameInput.value = modalIcon.contributor === "Anonymous" ? "" : modalIcon.contributor;
+          modalDeleteText.textContent =
+            `Delete "${modalIcon.name}"? It leaves the gallery, its source file is removed, ` +
+            `and the contributor is not told.`;
+        }
+      }
+
+      async function adminRename() {
+        const icon = modalIcon;
+        try {
+          const { submission } = await api(`/api/submissions/${encodeURIComponent(icon.submissionId)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ contributor: modalRenameInput.value }),
+          });
+          icon.contributor = submission.contributor;
+          showModalConfirm(null);
+          refreshModal();
+          showToast(`Credited to ${submission.contributor}`);
+        } catch (err) {
+          showToast(`Couldn't rename: ${err.message}`);
+        }
+      }
+
+      async function adminDelete() {
+        const icon = modalIcon;
+        try {
+          await api(`/api/submissions/${encodeURIComponent(icon.submissionId)}`, { method: "DELETE" });
+          icons = icons.filter((i) => i !== icon);
+          closeModal();
+          applyFilter();
+          showToast(`Deleted ${icon.name}`);
+        } catch (err) {
+          showToast(`Couldn't delete: ${err.message}`);
+        }
+      }
+
+      modal.addEventListener("click", (e) => {
+        const act = e.target.closest("[data-adminact]")?.dataset.adminact;
+        if (!act || !modalIcon) return;
+        if (act === "rename") return showModalConfirm("rename");
+        if (act === "delete") return showModalConfirm("delete");
+        if (act === "cancel") return showModalConfirm(null);
+        if (act === "rename-save") return adminRename();
+        if (act === "delete-confirm") return adminDelete();
+      });
+
       /* --- Control bar wiring --------------------------------------------- */
       search.addEventListener("input", applyFilter);
       weightEl.addEventListener("change", () => {
@@ -656,19 +1062,45 @@
       colorResetEl.addEventListener("click", () => {
         currentColor = null;
         root.style.setProperty("--preview-color", "var(--fg)");
+        syncColorSwatch();
         refreshModal();
       });
+
+      /**
+       * Keep the swatch showing the colour the icons are actually drawn in. After
+       * a reset that is the theme's foreground, not the last colour picked — a
+       * swatch still showing the old value would claim a selection that is no
+       * longer in effect. <input type="color"> only accepts #rrggbb, so a
+       * computed value in another notation is converted through a canvas.
+       */
+      function syncColorSwatch() {
+        const value = resolvedColor();
+        colorEl.value = /^#[0-9a-f]{6}$/i.test(value) ? value : toHex(value);
+      }
+
+      function toHex(color) {
+        const ctx = document.createElement("canvas").getContext("2d");
+        ctx.fillStyle = "#000000"; // fallback if the value does not parse
+        ctx.fillStyle = color;
+        const parsed = ctx.fillStyle;
+        if (/^#[0-9a-f]{6}$/i.test(parsed)) return parsed;
+        const rgb = parsed.match(/\d+/g);
+        return rgb
+          ? "#" + rgb.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, "0")).join("")
+          : "#000000";
+      }
 
       // Initialise preview vars from defaults.
       root.style.setProperty("--preview-size", currentSize + "px");
       root.style.setProperty("--preview-color", "var(--fg)");
+      syncColorSwatch();
 
       /* --- AI generate ----------------------------------------------------- */
       // Three sources produce the same thing: 1–4 centerline paths on the 256
       // grid. All six weights are then derived client-side, mirroring
       // scripts/derive-weights.js and src/StrokeIcon.tsx.
       //
-      //   hosted  a free model behind icon-genie's proxy — no key, no account
+      //   hosted  a free model behind this site's own /api/ai relay — no key
       //   key     the user's own OpenAI-compatible key, called from this tab
       //   paste   the user's own AI chat, via copy-prompt / paste-reply
       //
@@ -676,10 +1108,13 @@
       // elsewhere: the browser's same-origin policy exists precisely to stop
       // that, and anything that worked around it would be credential theft. The
       // paste bridge is how this page uses a subscription it must never see.
-      const PROXY_BASE = (
-        new URLSearchParams(location.search).get("proxy") ||
-        "https://icon-genie-proxy.shashihans.workers.dev"
-      ).replace(/\/+$/, "");
+      //
+      // hosted and key run the identical code path, because the relay speaks the
+      // same chat-completions shape a provider does. Which upstream the relay
+      // calls is server configuration (FREE_MODEL_BASE); the page cannot choose
+      // it, and must not be able to.
+      const FREE_BASE = "/api/ai";
+      const FREE_MODEL_LABEL = "The free model";
       const GEN_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
       const GEN_STROKE = { thin: 9, light: 13, regular: 18, bold: 27 };
 
@@ -697,6 +1132,54 @@
       const genBaseEl = document.getElementById("gen-base");
       const genPasteEl = document.getElementById("gen-paste");
       const genCopyPrompt = document.getElementById("gen-copy-prompt");
+      const genRowTop = document.getElementById("gen-row-top");
+      const genRowPaste = document.getElementById("gen-row-paste");
+      const genContributorEl = document.getElementById("gen-contributor");
+
+      // The contributor's chosen display name, remembered between visits so it
+      // only has to be typed once.
+      const CONTRIBUTOR_STORE = "shicons.contributor";
+      genContributorEl.value = localStorage.getItem(CONTRIBUTOR_STORE) || "";
+      const genRememberEl = document.getElementById("gen-remember");
+
+      // Opt-in credential storage, off by default. localStorage is readable by any
+      // script on this origin, so this trades the XSS blast radius for not having
+      // to retype the key — the user's call, made explicitly, never assumed.
+      const KEY_STORE = "shicons.byok";
+      function loadRememberedKey() {
+        let saved = null;
+        try {
+          saved = JSON.parse(localStorage.getItem(KEY_STORE) || "null");
+        } catch {
+          // corrupt entry — treat as absent
+        }
+        if (!saved?.apiKey) return;
+        genModelEl.value = saved.model || "";
+        genKeyEl.value = saved.apiKey;
+        genBaseEl.value = saved.baseURL || "";
+        genRememberEl.checked = true;
+      }
+      function persistKey() {
+        if (!genRememberEl.checked) return localStorage.removeItem(KEY_STORE);
+        localStorage.setItem(
+          KEY_STORE,
+          JSON.stringify({
+            model: genModelEl.value.trim(),
+            apiKey: genKeyEl.value.trim(),
+            baseURL: genBaseEl.value.trim(),
+          })
+        );
+      }
+      // Unchecking clears the stored copy immediately, not at next generate.
+      genRememberEl.addEventListener("change", () => {
+        if (!genRememberEl.checked) localStorage.removeItem(KEY_STORE);
+      });
+      // Closing the dialog drops the key from the DOM — unless the user asked us
+      // to remember it, in which case emptying the field would defeat the point.
+      function forgetKeyField() {
+        if (!genRememberEl.checked) genKeyEl.value = "";
+      }
+      loadRememberedKey();
       let genIcon = null;
       let genSource = "hosted";
 
@@ -740,7 +1223,18 @@
         for (const id of ["hosted", "key", "paste"]) {
           document.getElementById(`gen-panel-${id}`).hidden = id !== src;
         }
-        genRun.textContent = src === "paste" ? "Use pasted reply" : "Generate";
+        // Swap where the two buttons sit. Copy prompt belongs next to the
+        // description it copies; Generate belongs next to whatever it consumes —
+        // the description on the other tabs, the pasted reply here.
+        // appendChild moves the node, so neither button is ever duplicated.
+        const paste = src === "paste";
+        (paste ? genRowPaste : genRowTop).appendChild(genRun);
+        genCopyPrompt.hidden = !paste;
+
+        // A failure belongs to the source that produced it. Leaving it up after a
+        // switch reads as if the newly-picked source had already failed.
+        genStatus.className = "gen-status";
+        genStatus.textContent = "";
       }
 
       function openGen() {
@@ -753,20 +1247,213 @@
       aiOpen.addEventListener("click", openGen);
       if (location.hash === "#generate") openGen();
 
-      // Hosted proxy: the model runs server-side, so the response is already
-      // validated there. normalizePaths still runs on the way out, so every
-      // source lands in the same framed, transform-free form.
-      async function fromHosted(prompt) {
-        const res = await fetch(`${PROXY_BASE}/v1/generate-icon`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ prompt }),
+      /* --- Identity + history ---------------------------------------------- */
+      // The server owns identity. This page only renders what /api/auth/me says,
+      // because a role decided in the browser is a role the browser can change:
+      // every admin endpoint re-checks the session cookie server-side.
+      const whoToggle = document.getElementById("who-toggle");
+      const whoLabel = document.getElementById("who-label");
+      const whoMenu = document.getElementById("who-menu");
+      const adminLink = document.getElementById("admin-link");
+      const loginOpen = document.getElementById("login-open");
+      const logoutBtn = document.getElementById("logout-btn");
+      const loginModal = document.getElementById("login-modal");
+      const loginForm = document.getElementById("login-form");
+      const loginPassword = document.getElementById("login-password");
+      const loginStatus = document.getElementById("login-status");
+      const histOpen = document.getElementById("hist-open");
+      const histModal = document.getElementById("hist-modal");
+      const histList = document.getElementById("hist-list");
+      const histStatus = document.getElementById("hist-status");
+      const storeWarning = document.getElementById("store-warning");
+      let me = { role: "guest", title: "Guest" };
+
+      async function api(path, opts = {}) {
+        const res = await fetch(path, {
+          credentials: "same-origin", // the session and guest cookies are the point
+          headers: opts.body ? { "content-type": "application/json" } : undefined,
+          ...opts,
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        const paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.d ? [data.d] : [];
-        if (!paths.length) throw new Error("No icon returned.");
-        return { name: data.name || "icon", paths: normalizePaths(paths.map((d) => ({ d }))) };
+        return data;
+      }
+
+      function renderWho() {
+        const admin = me.role === "admin";
+        // "Welcome Guest" / "Welcome Admin", with the role emphasised. Built from
+        // nodes rather than innerHTML — me.title comes from the server.
+        whoLabel.replaceChildren(document.createTextNode("Welcome"));
+        const who = document.createElement("strong");
+        who.textContent = me.title || (admin ? "Admin" : "Guest");
+        whoLabel.appendChild(who);
+        whoToggle.className = admin ? "who-badge admin" : "who-badge";
+        adminLink.hidden = !admin;
+        logoutBtn.hidden = !admin;
+        loginOpen.hidden = admin;
+      }
+
+      function setWhoMenu(open) {
+        whoMenu.hidden = !open;
+        whoToggle.setAttribute("aria-expanded", String(open));
+      }
+
+      async function loadMe() {
+        try {
+          me = await api("/api/auth/me?visit=1");
+        } catch {
+          // No backend (e.g. `npx serve docs` with no functions): stay a guest and
+          // hide the features that need one, rather than showing broken controls.
+          me = { role: "guest", title: "Guest", offline: true };
+          // With no API there is nothing to log into and no history to read, so
+          // the menu would offer two dead options.
+          histOpen.hidden = true;
+          loginOpen.hidden = true;
+        }
+        storeWarning.classList.toggle("show", Boolean(me.ephemeralStore));
+        renderWho();
+        renderVisitors();
+      }
+
+      // Unique visitors, judged by the guest cookie — the same one history uses,
+      // so no IP is read or stored. Views are returned too and shown as a title,
+      // since the headline number people mean by "visitors" is the unique one.
+      function renderVisitors() {
+        const el = document.getElementById("visitors");
+        const v = me.visits;
+        if (!v || typeof v.visitors !== "number") {
+          el.hidden = true;
+          return;
+        }
+        const plural = v.visitors === 1 ? "visitor" : "visitors";
+        el.textContent = `${v.visitors.toLocaleString()} ${plural}`;
+        el.title = `${v.views.toLocaleString()} page views`;
+        el.hidden = false;
+      }
+
+      function histRowHtml(entry) {
+        const inner = deriveWeightInner(entry.paths).regular;
+        const when = new Date(entry.createdAt).toLocaleString();
+        const status = entry.status
+          ? `<span class="tag ${entry.status}">${entry.status}</span>`
+          : `<span class="tag">${entry.kind}</span>`;
+        return (
+          `<div class="hist-row">` +
+          `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${inner}</svg>` +
+          `<span class="grow"><span class="hist-name">${entry.name}</span>` +
+          `<div class="hist-meta">${entry.kind} · ${when}</div></span>${status}</div>`
+        );
+      }
+
+      async function openHistory() {
+        histModal.hidden = false;
+        histStatus.className = "gen-status";
+        histStatus.textContent = "Loading…";
+        histList.innerHTML = "";
+        try {
+          const { entries } = await api("/api/history");
+          if (!entries.length) {
+            histStatus.textContent = "Nothing yet. Generate an icon and it will show up here.";
+            return;
+          }
+          histList.innerHTML = entries.map(histRowHtml).join("");
+          histStatus.textContent = "";
+        } catch (err) {
+          histStatus.className = "gen-status error";
+          histStatus.textContent = `Couldn't load history: ${err.message}`;
+        }
+      }
+
+      // Record a generation so it survives a reload. Best-effort: a failure here
+      // must not cost the user the icon they just generated.
+      async function recordGenerated(icon) {
+        try {
+          await api("/api/history", {
+            method: "POST",
+            body: JSON.stringify({ name: icon.name, paths: icon.centerline }),
+          });
+        } catch {
+          // history is a convenience, not part of the generate result
+        }
+      }
+
+      whoToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setWhoMenu(whoMenu.hidden);
+      });
+      // Choosing anything closes the menu, including the Icon approval link,
+      // which navigates away.
+      whoMenu.addEventListener("click", () => setWhoMenu(false));
+      document.addEventListener("click", (e) => {
+        if (!whoMenu.hidden && !e.target.closest(".who")) setWhoMenu(false);
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !whoMenu.hidden) {
+          setWhoMenu(false);
+          whoToggle.focus();
+        }
+      });
+
+      loginOpen.addEventListener("click", () => {
+        loginModal.hidden = false;
+        loginStatus.textContent = "";
+        loginPassword.focus();
+      });
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        loginStatus.className = "gen-status";
+        loginStatus.textContent = "Checking…";
+        try {
+          await api("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ password: loginPassword.value }),
+          });
+          loginPassword.value = "";
+          loginModal.hidden = true;
+          await loadMe();
+          showToast("Logged in as admin");
+        } catch (err) {
+          loginStatus.className = "gen-status error";
+          loginStatus.textContent = err.message;
+        }
+      });
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          await api("/api/auth/logout", { method: "POST" });
+        } finally {
+          await loadMe();
+          showToast("Logged out");
+        }
+      });
+      histOpen.addEventListener("click", openHistory);
+      loginModal.addEventListener("click", (e) => {
+        if (e.target.dataset.loginclose !== undefined) loginModal.hidden = true;
+      });
+      histModal.addEventListener("click", (e) => {
+        if (e.target.dataset.histclose !== undefined) histModal.hidden = true;
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (!loginModal.hidden) loginModal.hidden = true;
+        if (!histModal.hidden) histModal.hidden = true;
+      });
+      loadMe();
+
+      /* --- AI generate: sources -------------------------------------------- */
+      // Free model, reached through this site's own relay at /api/ai. The relay
+      // pins the model and pays for the call, so the model name below is a label
+      // only and there is no key to send.
+      //
+      // This calls the same generateWithKey as the key source, which is what puts
+      // both sources behind one gate: prompt, JSON parsing, path count, and
+      // framing are enforced in this page either way. A relay response is not
+      // more trusted than a provider one — it is the same model output, relayed.
+      async function fromHosted(prompt) {
+        const icon = await generateWithKey(
+          { model: "free", apiKey: "", baseURL: FREE_BASE, label: FREE_MODEL_LABEL },
+          prompt
+        );
+        return { name: icon.name, summary: icon.summary, paths: icon.paths };
       }
 
       // The user's own key. The request goes from this tab straight to their
@@ -780,7 +1467,8 @@
           { model, apiKey: apiKey.trim(), baseURL: genBaseEl.value.trim(), label: model },
           prompt
         );
-        return { name: icon.name, paths: icon.paths };
+        persistKey(); // only writes if the user ticked Remember; a rejected key is never stored
+        return { name: icon.name, summary: icon.summary, paths: icon.paths };
       }
 
       // The user's own AI chat. parsePastedIcon runs the full gate — path syntax,
@@ -789,7 +1477,7 @@
         const text = genPasteEl.value.trim();
         if (!text) throw new Error("Paste the reply from your AI chat first.");
         const icon = parsePastedIcon(text, prompt);
-        return { name: icon.name, paths: icon.paths };
+        return { name: icon.name, summary: icon.summary, paths: icon.paths };
       }
 
       async function runGenerate() {
@@ -814,10 +1502,12 @@
             component: pascal(out.name || "icon"),
             kind: "stroke",
             generated: true,
+            summary: out.summary || "",
             centerline: out.paths,
             weights: deriveWeightInner(out.paths),
           };
           renderGen();
+          recordGenerated(genIcon); // fire and forget; history must not gate the result
           const count = out.paths.length;
           genStatus.textContent =
             `Generated "${genIcon.name}" (${count} path${count === 1 ? "" : "s"}). ` +
@@ -830,6 +1520,10 @@
         }
       }
       function renderGen() {
+        // A fresh icon starts a fresh contribution: never carry an unanswered
+        // "contribute anonymously?" prompt, or a spent button, to a new drawing.
+        anonConfirm.hidden = true;
+        document.getElementById("gen-contribute").disabled = false;
         genWeightsEl.innerHTML = GEN_WEIGHTS.map(
           (w) =>
             `<figure><div class="gen-cell"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${genIcon.weights[w]}</svg></div><figcaption>${w}</figcaption></figure>`
@@ -850,39 +1544,70 @@
         showToast(`Saved ${icon.name}.centerline.svg`);
       }
 
-      async function contributeIcon() {
+      // Submits the icon to this site's own review queue, which the admin page
+      // reads. It replaces the old direct-to-GitHub call: the queue is what lets
+      // an admin see the name and details before anything reaches the library,
+      // and it keeps a repo-write token out of the request path entirely.
+      // Contributing with an empty name asks once, inline, whether that is
+      // intended. A blank field is far more often "I haven't filled it in yet"
+      // than "credit me as Anonymous", and the credit is public and permanent
+      // once approved — worth one question rather than a silent default.
+      const anonConfirm = document.getElementById("gen-anon-confirm");
+
+      function askAnonymous() {
+        anonConfirm.hidden = false;
+        genStatus.className = "gen-status";
+        genStatus.textContent = "";
+      }
+      function hideAnonPrompt() {
+        anonConfirm.hidden = true;
+      }
+      document.getElementById("gen-anon-yes").addEventListener("click", () => {
+        hideAnonPrompt();
+        contributeIcon({ allowAnonymous: true });
+      });
+      document.getElementById("gen-anon-no").addEventListener("click", () => {
+        hideAnonPrompt();
+        genContributorEl.focus();
+      });
+
+      async function contributeIcon({ allowAnonymous = false } = {}) {
         if (!genIcon) return;
+        if (!genContributorEl.value.trim() && !allowAnonymous) return askAnonymous();
+        hideAnonPrompt();
         const btn = document.getElementById("gen-contribute");
         btn.disabled = true;
         genStatus.className = "gen-status";
-        genStatus.textContent = "Opening a pull request to the library…";
+        genStatus.textContent = "Submitting to the library queue…";
         try {
-          const res = await fetch(`${PROXY_BASE}/v1/contribute-icon`, {
+          const contributor = genContributorEl.value.trim();
+          const { submission } = await api("/api/submissions", {
             method: "POST",
-            headers: { "content-type": "application/json" },
             body: JSON.stringify({
               name: genIcon.name,
               paths: genIcon.centerline,
               prompt: genPrompt.value.trim(),
+              summary: genIcon.summary || "",
+              source: genSource,
+              contributor,
             }),
           });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-          genStatus.replaceChildren(
-            document.createTextNode("Pull request opened — a maintainer will review it: ")
-          );
-          const a = document.createElement("a");
-          a.href = data.url;
-          a.target = "_blank";
-          a.rel = "noopener";
-          a.textContent = data.url;
-          genStatus.appendChild(a);
-          showToast("Contribution PR opened");
+          // Remember the name so a repeat contributor does not retype it. It is
+          // the name they asked to have shown publicly, not a secret.
+          if (contributor) localStorage.setItem(CONTRIBUTOR_STORE, contributor);
+          genStatus.textContent =
+            `Submitted "${submission.name}" for review, credited to ${submission.contributor}. ` +
+            `An admin decides whether it joins the library — track it under History.`;
+          showToast("Submitted for review");
+          // An icon can only be contributed once, so the button has nothing left
+          // to do. The server rejects a duplicate anyway; this keeps a second
+          // click from looking like a failure.
+          genIcon.submitted = true;
         } catch (err) {
           genStatus.className = "gen-status error";
-          genStatus.textContent = `Couldn't contribute: ${err.message}`;
+          genStatus.textContent = `Couldn't submit: ${err.message}`;
         } finally {
-          btn.disabled = false;
+          btn.disabled = Boolean(genIcon?.submitted);
         }
       }
 
@@ -894,20 +1619,38 @@
         tab.addEventListener("click", () => selectSource(tab.dataset.gensrc));
       }
       selectSource(genSource);
-      genCopyPrompt.addEventListener("click", () => {
+      // Confirming on the button as well as in the toast: this button sits in a
+      // modal and the toast does not, so the reply to a click has to appear where
+      // the pointer already is. Read once, before any flash, so a click during
+      // one restores the real label rather than freezing "Copied".
+      const COPY_PROMPT_LABEL = genCopyPrompt.textContent;
+      const COPIED_FLASH_MS = 3000;
+      let copiedFlashTimer = 0;
+
+      genCopyPrompt.addEventListener("click", async () => {
         const prompt = genPrompt.value.trim();
         if (!prompt) {
           genStatus.className = "gen-status error";
           genStatus.textContent = "Enter a description first.";
           return;
         }
-        copy(buildChatPrompt(prompt), "Prompt copied — paste it into your AI chat");
+        const copied = await copy(buildChatPrompt(prompt), "Prompt copied — paste it into your AI chat");
+        // A failed copy keeps the original label: "Copied" over an empty clipboard
+        // would send the user to paste nothing into their chat.
+        if (!copied) return;
+        genCopyPrompt.textContent = "✓ Copied";
+        genCopyPrompt.classList.add("ok");
+        clearTimeout(copiedFlashTimer);
+        copiedFlashTimer = setTimeout(() => {
+          genCopyPrompt.textContent = COPY_PROMPT_LABEL;
+          genCopyPrompt.classList.remove("ok");
+        }, COPIED_FLASH_MS);
       });
       // The key lives in the field only; drop it as soon as the dialog closes so
       // it does not sit in the DOM for the rest of the session.
       genModal.addEventListener("click", (e) => {
         if (e.target.dataset.genclose !== undefined) {
-          genKeyEl.value = "";
+          forgetKeyField();
           return closeGen();
         }
         const act = e.target.dataset.genact;
@@ -921,36 +1664,70 @@
       });
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && !genModal.hidden) {
-          genKeyEl.value = "";
+          forgetKeyField();
           closeGen();
         }
       });
 
-      fetch("./icons.json")
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then((data) => {
-          icons = data.icons || [];
-          if (Array.isArray(data.weights) && data.weights.length) {
-            weights = data.weights;
-            weightEl.innerHTML = weights
-              .map(
-                (w) =>
-                  `<option value="${w}"${w === "regular" ? " selected" : ""}>${w}</option>`
-              )
-              .join("");
+      /* --- Loading the catalogue ------------------------------------------- */
+      // Two requests, deliberately. /api/icons returns every icon with only its
+      // regular weight, which is about a sixth of the bytes and enough to paint
+      // the grid; /api/icons/all follows with all six weights and replaces it.
+      // The weight selector and the detail dialog stay on regular until then.
+      function applyWeightOptions(list) {
+        if (!Array.isArray(list) || !list.length) return;
+        weights = list;
+        weightEl.innerHTML = weights
+          .map((w) => `<option value="${w}"${w === "regular" ? " selected" : ""}>${w}</option>`)
+          .join("");
+      }
+
+      function setLoadingNote(text) {
+        const el = document.getElementById("load-note");
+        el.textContent = text || "";
+        el.hidden = !text;
+      }
+
+      async function loadIcons() {
+        // Stage 1: paint as soon as possible.
+        try {
+          const summary = await api("/api/icons");
+          icons = summary.icons || [];
+          applyWeightOptions(summary.weights);
+          storeWarning.classList.toggle("show", Boolean(summary.ephemeralStore));
+          applyFilter();
+          setLoadingNote(`Showing regular weight — loading all ${weights.length} weights…`);
+        } catch (err) {
+          grid.innerHTML =
+            `<div class="empty">Could not load icons (${err.message}).<br/>` +
+            `The gallery needs the API: run <code>npm run dev</code>, ` +
+            `after <code>npm run build:icons</code>.</div>`;
+          countEl.textContent = "";
+          return;
+        }
+
+        // Stage 2: the full set. A failure here leaves a usable gallery at regular
+        // weight, so it degrades rather than breaking.
+        try {
+          const full = await api("/api/icons/all");
+          const byName = new Map((full.icons || []).map((icon) => [icon.name, icon]));
+          // Preserve the current order and any icon the second call somehow lacks.
+          icons = icons.map((icon) => byName.get(icon.name) ?? icon);
+          for (const icon of byName.values()) {
+            if (!icons.some((i) => i.name === icon.name)) icons.push(icon);
           }
           applyFilter();
-        })
-        .catch((err) => {
-          grid.innerHTML =
-            `<div class="empty">Could not load icons.json (${err.message}).<br/>` +
-            `Run <code>npm run build:icons</code>, then serve this folder ` +
-            `(e.g. <code>npx serve docs</code>).</div>`;
-          countEl.textContent = "";
-        });
+          if (!modal.hidden && modalIcon) {
+            modalIcon = icons.find((i) => i.name === modalIcon.name) ?? modalIcon;
+            openModal(modalIcon);
+          }
+          setLoadingNote("");
+        } catch {
+          setLoadingNote("All weights unavailable — showing regular only.");
+        }
+      }
+
+      loadIcons();
     </script>
   </body>
 </html>

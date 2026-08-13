@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2358a6ff' viewBox='0 0 256 256'><path d='M120 56v48a16 16 0 0 1-16 16H56a16 16 0 0 1-16-16V56a16 16 0 0 1 16-16h48a16 16 0 0 1 16 16m80-16h-48a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16V56a16 16 0 0 0-16-16m-96 96H56a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16v-48a16 16 0 0 0-16-16m96 0h-48a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16v-48a16 16 0 0 0-16-16'/></svg>"
+    />
+    <title>Icon Review — Admin</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --border: #30363d;
+        --fg: #e6edf3;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --ok: #3fb950;
+        --bad: #f85149;
+        --warn: #e3b341;
+      }
+      :root[data-theme="light"] {
+        --bg: #ffffff;
+        --panel: #f6f8fa;
+        --border: #d0d7de;
+        --fg: #1f2328;
+        --muted: #656d76;
+        --accent: #0969da;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+        padding: 16px 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      h1 { margin: 0; font-size: 18px; }
+      .grow { flex: 1; }
+      .btn {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .btn:hover { border-color: var(--accent); }
+      .btn[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
+      .btn.ok:hover { border-color: var(--ok); color: var(--ok); }
+      .btn.bad:hover { border-color: var(--bad); color: var(--bad); }
+      main { padding: 20px; max-width: 1000px; margin: 0 auto; }
+      .filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+      .note { color: var(--muted); }
+      .banner {
+        border: 1px solid var(--warn);
+        color: var(--warn);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        font-size: 12px;
+      }
+      .banner[hidden] { display: none; }
+      .card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 16px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+      .previews { display: flex; gap: 8px; }
+      .previews figure { margin: 0; text-align: center; }
+      .previews .cell {
+        width: 56px; height: 56px;
+        border: 1px solid var(--border); border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--bg);
+      }
+      .previews svg { width: 36px; height: 36px; color: var(--fg); }
+      .previews figcaption { font-size: 10px; color: var(--muted); margin-top: 3px; }
+      .meta { min-width: 0; }
+      .meta h2 { margin: 0 0 4px; font-size: 16px; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0 12px; font-size: 13px; }
+      dt { color: var(--muted); }
+      dd { margin: 0; word-break: break-word; }
+      code {
+        font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 5px;
+      }
+      pre {
+        margin: 0 0 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        overflow-x: auto;
+        font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        max-height: 130px;
+      }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      /* Destructive and identity-changing actions confirm in place rather than
+         in a native dialog: the icon stays visible while deciding. */
+      .confirm {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+        border: 1px solid var(--warn); color: var(--warn); font-size: 12px;
+      }
+      .confirm[hidden] { display: none; }
+      .confirm input {
+        background: var(--bg); border: 1px solid var(--border); color: var(--fg);
+        padding: 6px 9px; border-radius: 6px; font-size: 13px; width: 180px;
+      }
+      .btn.danger { border-color: var(--bad); color: var(--bad); }
+      .tag { font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
+      .tag.approved { border-color: var(--ok); color: var(--ok); }
+      .tag.rejected { border-color: var(--bad); color: var(--bad); }
+      .tag.pending { border-color: var(--warn); color: var(--warn); }
+      #status { color: var(--muted); margin-bottom: 12px; min-height: 20px; }
+      #status.error { color: var(--bad); }
+      .gate { max-width: 420px; margin: 60px auto; text-align: center; }
+      .gate input {
+        width: 100%;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        padding: 10px 12px;
+        border-radius: 8px;
+        margin: 12px 0 8px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Icon review</h1>
+      <span class="tag" id="who">…</span>
+      <span class="grow"></span>
+      <a class="btn" href="./index.html">← Gallery</a>
+      <button class="btn" id="refresh" type="button">Refresh</button>
+      <button class="btn" id="logout" type="button" hidden>Log out</button>
+    </header>
+
+    <main>
+      <!-- Shown when there is no admin session. The real gate is server-side:
+           every /api/submissions call re-checks the cookie, so hiding this panel
+           is presentation, never protection. -->
+      <section class="gate" id="gate" hidden>
+        <h2>Admin log in</h2>
+        <p class="note">This page lists icons people submitted, so it needs an admin session.</p>
+        <form id="gate-form">
+          <input id="gate-password" type="password" placeholder="Admin password" autocomplete="current-password" />
+          <button class="btn" type="submit">Log in</button>
+        </form>
+        <p class="note" id="gate-status"></p>
+      </section>
+
+      <section id="queue" hidden>
+        <div class="banner" id="store-banner" hidden>
+          No database is connected, so this queue lives in the server's memory and empties
+          when the instance recycles. Wire a driver into <code>server/lib/store.js</code>.
+        </div>
+        <div class="filters" id="filters">
+          <button class="btn" type="button" data-status="pending" aria-selected="true">Pending</button>
+          <button class="btn" type="button" data-status="approved" aria-selected="false">Approved</button>
+          <button class="btn" type="button" data-status="rejected" aria-selected="false">Rejected</button>
+          <button class="btn" type="button" data-status="" aria-selected="false">All</button>
+        </div>
+        <div id="status"></div>
+        <div id="list"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      // Weight derivation mirrors scripts/derive-weights.js and src/StrokeIcon.tsx,
+      // so what an admin approves is what the library will render.
+      const STROKE = { thin: 9, light: 13, regular: 18, bold: 27 };
+      const stroked = (paths, w) =>
+        paths
+          .map(
+            (d) =>
+              `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`
+          )
+          .join("");
+      const filled = (paths, op) =>
+        paths.map((d) => `<path d="${d}" fill="currentColor"${op == null ? "" : ` opacity="${op}"`}/>`).join("");
+      const weights = (paths) => ({
+        thin: stroked(paths, STROKE.thin),
+        light: stroked(paths, STROKE.light),
+        regular: stroked(paths, STROKE.regular),
+        bold: stroked(paths, STROKE.bold),
+        fill: filled(paths),
+        duotone: filled(paths, 0.2) + stroked(paths, STROKE.regular),
+      });
+
+      const gate = document.getElementById("gate");
+      const gateForm = document.getElementById("gate-form");
+      const gatePassword = document.getElementById("gate-password");
+      const gateStatus = document.getElementById("gate-status");
+      const queue = document.getElementById("queue");
+      const list = document.getElementById("list");
+      const statusEl = document.getElementById("status");
+      const whoEl = document.getElementById("who");
+      const logoutBtn = document.getElementById("logout");
+      const storeBanner = document.getElementById("store-banner");
+      const filters = document.getElementById("filters");
+      let filter = "pending";
+
+      // Escape before interpolating anything a submitter controls. The name and
+      // prompt arrive from an open endpoint, so they are untrusted text; path data
+      // goes through the server's validator, which rejects anything but path
+      // characters.
+      const esc = (s) =>
+        String(s ?? "").replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+        );
+
+      async function api(path, opts = {}) {
+        const res = await fetch(path, {
+          credentials: "same-origin",
+          headers: opts.body ? { "content-type": "application/json" } : undefined,
+          ...opts,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        return data;
+      }
+
+      function applyTheme() {
+        const saved = localStorage.getItem("icon-gallery-theme");
+        if (saved) document.documentElement.setAttribute("data-theme", saved);
+      }
+
+      function cardHtml(row) {
+        const w = weights(row.paths);
+        const previews = ["thin", "regular", "bold", "fill", "duotone"]
+          .map(
+            (name) =>
+              `<figure><div class="cell"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${w[name]}</svg></div><figcaption>${name}</figcaption></figure>`
+          )
+          .join("");
+        const file = `raw-svgs/${esc(row.name)}/${esc(row.name)}.centerline.svg`;
+        const pending = row.status === "pending";
+        return `
+          <article class="card" data-id="${esc(row.id)}">
+            <div class="previews">${previews}</div>
+            <div class="meta">
+              <h2>${esc(row.name)} <span class="tag ${row.status}">${row.status}</span></h2>
+              <dl>
+                <dt>Component</dt><dd><code>${esc(toPascal(row.name))}</code></dd>
+                <dt>Contributor</dt><dd>${esc(row.contributor || "Anonymous")}</dd>
+                <dt>Asked for</dt><dd>${esc(row.prompt) || "<span class='note'>(none)</span>"}</dd>
+                <dt>Summary</dt><dd>${esc(row.summary) || "<span class='note'>(none)</span>"}</dd>
+                <dt>Paths</dt><dd>${row.paths.length}</dd>
+                <dt>Source</dt><dd>${esc(row.source)}</dd>
+                <dt>Submitted</dt><dd>${new Date(row.createdAt).toLocaleString()}</dd>
+                <dt>Submitter</dt><dd><code>${esc(row.guestId).slice(0, 12)}…</code></dd>
+                ${row.reviewedAt ? `<dt>Reviewed</dt><dd>${new Date(row.reviewedAt).toLocaleString()}</dd>` : ""}
+                <dt>Add as</dt><dd><code>${file}</code></dd>
+              </dl>
+              <pre>${esc(centerlineSvg(row.paths))}</pre>
+              <div class="actions">
+                <button class="btn" data-act="copy">Copy source SVG</button>
+                <button class="btn" data-act="download">Download source</button>
+                ${pending ? `<button class="btn ok" data-act="approve">Approve</button>` : ""}
+                ${pending ? `<button class="btn bad" data-act="reject">Reject</button>` : ""}
+                ${!pending ? `<button class="btn" data-act="reopen">Move back to pending</button>` : ""}
+                <button class="btn" data-act="rename">Change contributor</button>
+                <button class="btn danger" data-act="delete">Delete</button>
+              </div>
+              <div class="confirm" data-confirm="rename" hidden>
+                <span>New contributor name:</span>
+                <input data-field="contributor" maxlength="20" value="${esc(row.contributor || "")}" />
+                <button class="btn" data-act="rename-save">Save name</button>
+                <button class="btn" data-act="cancel">Cancel</button>
+              </div>
+              <div class="confirm" data-confirm="delete" hidden>
+                <span>Delete <strong>${esc(row.name)}</strong>? It leaves the gallery, its source file is
+                removed, and the contributor is not told.</span>
+                <button class="btn danger" data-act="delete-confirm">Delete for good</button>
+                <button class="btn" data-act="cancel">Cancel</button>
+              </div>
+            </div>
+          </article>`;
+      }
+
+      function toPascal(name) {
+        const p = String(name)
+          .split(/[^a-zA-Z0-9]+/)
+          .filter(Boolean)
+          .map((s) => s[0].toUpperCase() + s.slice(1))
+          .join("");
+        return /^[0-9]/.test(p) ? "Icon" + p : p || "Icon";
+      }
+
+      function centerlineSvg(paths) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">${paths
+          .map((d) => `<path d="${d}"/>`)
+          .join("")}</svg>`;
+      }
+
+      let rows = [];
+
+      async function load() {
+        statusEl.className = "";
+        statusEl.textContent = "Loading…";
+        try {
+          const query = filter ? `?status=${encodeURIComponent(filter)}` : "";
+          const data = await api(`/api/submissions${query}`);
+          rows = data.submissions;
+          storeBanner.hidden = !data.ephemeralStore;
+          const c = data.counts;
+          statusEl.textContent = rows.length
+            ? `${rows.length} shown · ${c.pending} pending, ${c.approved} approved, ${c.rejected} rejected`
+            : `Nothing ${filter || "here"} yet. ${c.pending} pending overall.`;
+          list.innerHTML = rows.map(cardHtml).join("");
+        } catch (err) {
+          if (/admin session/i.test(err.message)) return showGate();
+          statusEl.className = "error";
+          statusEl.textContent = err.message;
+        }
+      }
+
+      function showGate() {
+        gate.hidden = false;
+        queue.hidden = true;
+        logoutBtn.hidden = true;
+        whoEl.textContent = "Guest";
+        gatePassword.focus();
+      }
+
+      async function showQueue() {
+        gate.hidden = true;
+        queue.hidden = false;
+        logoutBtn.hidden = false;
+        whoEl.textContent = "Admin";
+        whoEl.className = "tag approved";
+        await load();
+      }
+
+      async function review(id, status) {
+        statusEl.className = "";
+        statusEl.textContent = status === "approved" ? "Approving and publishing…" : "Saving…";
+        try {
+          const { published } = await api(`/api/submissions/${encodeURIComponent(id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ status }),
+          });
+          await load();
+          // load() rewrites the status line, so report the publish result after
+          // it — an approval that failed to publish must not look like a success.
+          if (published) reportPublish(published);
+        } catch (err) {
+          statusEl.className = "error";
+          statusEl.textContent = err.message;
+        }
+      }
+
+      function reportPublish(published) {
+        statusEl.className = published.error ? "error" : "";
+        statusEl.replaceChildren(
+          document.createTextNode(`${published.filePath} — ${published.detail} `)
+        );
+        if (published.url) {
+          const a = document.createElement("a");
+          a.href = published.url;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = published.url;
+          statusEl.appendChild(a);
+        }
+      }
+
+      function download(name, text) {
+        const url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      /** Show one confirm row on a card and hide the other. */
+      function showConfirm(card, which) {
+        for (const box of card.querySelectorAll("[data-confirm]")) {
+          box.hidden = box.dataset.confirm !== which;
+        }
+        if (which) card.querySelector(`[data-confirm="${which}"] input`)?.focus();
+      }
+
+      async function renameContributor(id, card) {
+        const value = card.querySelector('[data-field="contributor"]').value;
+        statusEl.className = "";
+        statusEl.textContent = "Saving name…";
+        try {
+          const { submission } = await api(`/api/submissions/${encodeURIComponent(id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ contributor: value }),
+          });
+          await load();
+          statusEl.textContent = `Contributor for ${submission.name} is now ${submission.contributor}.`;
+        } catch (err) {
+          statusEl.className = "error";
+          statusEl.textContent = err.message;
+        }
+      }
+
+      async function deleteSubmission(id) {
+        statusEl.className = "";
+        statusEl.textContent = "Deleting…";
+        try {
+          const { deleted, unpublished } = await api(`/api/submissions/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+          });
+          await load();
+          statusEl.className = unpublished?.error ? "error" : "";
+          statusEl.textContent = `Deleted ${deleted.name}. ${unpublished?.detail ?? ""}`;
+        } catch (err) {
+          statusEl.className = "error";
+          statusEl.textContent = err.message;
+        }
+      }
+
+      list.addEventListener("click", async (e) => {
+        const btn = e.target.closest("[data-act]");
+        if (!btn) return;
+        const card = btn.closest(".card");
+        const id = card?.dataset.id;
+        const row = rows.find((r) => r.id === id);
+        if (!row) return;
+        const act = btn.dataset.act;
+        // Both special powers ask first: one is destructive, the other rewrites
+        // a credit that is shown publicly.
+        if (act === "rename") return showConfirm(card, "rename");
+        if (act === "delete") return showConfirm(card, "delete");
+        if (act === "cancel") return showConfirm(card, null);
+        if (act === "rename-save") return renameContributor(id, card);
+        if (act === "delete-confirm") return deleteSubmission(id);
+        if (act === "approve") return review(id, "approved");
+        if (act === "reject") return review(id, "rejected");
+        if (act === "reopen") return review(id, "pending");
+        const svg = centerlineSvg(row.paths) + "\n";
+        if (act === "copy") {
+          await navigator.clipboard.writeText(svg);
+          statusEl.className = "";
+          statusEl.textContent = `Copied ${row.name}.centerline.svg — save it to raw-svgs/${row.name}/ and run npm run build:icons`;
+        } else if (act === "download") {
+          download(`${row.name}.centerline.svg`, svg);
+        }
+      });
+
+      filters.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-status]");
+        if (!btn) return;
+        filter = btn.dataset.status;
+        for (const b of filters.querySelectorAll("[data-status]")) {
+          b.setAttribute("aria-selected", String(b === btn));
+        }
+        load();
+      });
+
+      gateForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        gateStatus.textContent = "Checking…";
+        try {
+          await api("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ password: gatePassword.value }),
+          });
+          gatePassword.value = "";
+          gateStatus.textContent = "";
+          await showQueue();
+        } catch (err) {
+          gateStatus.textContent = err.message;
+        }
+      });
+
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          await api("/api/auth/logout", { method: "POST" });
+        } finally {
+          showGate();
+        }
+      });
+
+      document.getElementById("refresh").addEventListener("click", load);
+
+      applyTheme();
+      try {
+        const who = await api("/api/auth/me");
+        if (who.role === "admin") await showQueue();
+        else showGate();
+      } catch {
+        statusEl.className = "error";
+        statusEl.textContent =
+          "No API reachable. This page needs the backend running (vercel dev), not a static file server.";
+        gate.hidden = true;
+        queue.hidden = false;
+      }
+    </script>
+  </body>
+</html>

@@ -43,6 +43,8 @@
     "build:icons": "node scripts/optimize-svgs.js && node scripts/generate-components.js && node scripts/generate-index.js && node scripts/build-gallery.js",
     "build": "tsup",
     "build:all": "npm run build:icons && npm run build",
+    "dev": "node scripts/dev-server.js",
+    "dev:vercel": "vercel dev",
     "clean": "rimraf dist src/icons",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build:all"
