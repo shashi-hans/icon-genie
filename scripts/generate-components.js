@@ -47,6 +47,22 @@ ${componentName}.displayName = "${componentName}";
 //     path (true for ~70% of icons), regular is hoisted into a local and
 //     reused by both, removing the duplicated path data. The hoist is only
 //     emitted when it pays off, so other icons stay fully lazy.
+// Every label the switch must answer, grouped under the weight it renders as.
+// The removed weights ride along with their replacement, so keeping them costs
+// no extra markup: "light" sits with thin, "bold" and "sharp" with regular.
+const WEIGHT_LABELS = {
+  thin: ["thin", "light"],
+  regular: ["regular", "bold", "sharp"],
+  fill: ["fill"],
+  duotone: ["duotone"],
+};
+
+for (const weight of WEIGHTS) {
+  if (!WEIGHT_LABELS[weight]) {
+    throw new Error(`WEIGHT_LABELS has no entry for "${weight}"; add one when adding a weight.`);
+  }
+}
+
 function buildComponent(componentName, innerByWeight) {
   const reg = innerByWeight.regular;
   const duo = innerByWeight.duotone;
@@ -54,25 +70,48 @@ function buildComponent(componentName, innerByWeight) {
   const duoReusesRegular = duo.length > reg.length && duo.endsWith(reg);
   const tint = duoReusesRegular ? duo.slice(0, duo.length - reg.length) : null;
 
-  const caseFor = (weight, body) =>
-    `    case "${weight}":\n      paths = (\n        <>${body}</>\n      );\n      break;`;
+  // Weights whose markup is byte-identical share one case block, so a drawing
+  // used by several weights is stored once. Most icons have a thin that equals
+  // regular, or no separate fill, and across the catalogue that repetition came
+  // to 2.6 MB of duplicated path data.
+  /** @type {Map<string, string[]>} markup -> the labels that render it */
+  const groups = new Map();
+  for (const weight of WEIGHTS) {
+    // Emitted from the hoisted `regular` below instead, when it can be.
+    if (weight === "duotone" && duoReusesRegular) continue;
+    const markup = innerByWeight[weight];
+    if (!groups.has(markup)) groups.set(markup, []);
+    groups.get(markup).push(...WEIGHT_LABELS[weight]);
+  }
 
-  const cases = [
-    // "light" was removed as a weight and renders thin, so old calls keep
-    // working rather than falling through to regular and getting heavier.
-    `    case "light":\n${caseFor("thin", innerByWeight.thin)}`,
-    caseFor("fill", innerByWeight.fill),
-    duoReusesRegular
-      ? `    case "duotone":\n      paths = (\n        <>${tint}{regular}</>\n      );\n      break;`
-      : caseFor("duotone", duo),
-  ];
+  const heads = (labels) => labels.map((w) => `    case "${w}":`).join("\n");
+
+  // Whichever group holds "regular" becomes the default arm, so an unrecognised
+  // weight renders regular rather than leaving `paths` unassigned.
+  let regularMarkup = reg;
+  let regularLabels = [];
+  const cases = [];
+  for (const [markup, labels] of groups) {
+    if (labels.includes("regular")) {
+      regularMarkup = markup;
+      regularLabels = labels.filter((w) => w !== "regular");
+    } else {
+      cases.push(`${heads(labels)}\n      paths = (\n        <>${markup}</>\n      );\n      break;`);
+    }
+  }
+  if (duoReusesRegular) {
+    cases.push(`    case "duotone":\n      paths = (\n        <>${tint}{regular}</>\n      );\n      break;`);
+  }
 
   const regHoist = duoReusesRegular
     ? `  const regular = (\n    <>${reg}</>\n  );\n`
     : "";
   const defaultBody = duoReusesRegular
     ? `      paths = regular;`
-    : `      paths = (\n        <>${reg}</>\n      );`;
+    : `      paths = (\n        <>${regularMarkup}</>\n      );`;
+  const switchBody =
+    (cases.length ? cases.join("\n") + "\n" : "") +
+    (regularLabels.length ? heads(regularLabels) + "\n" : "");
 
   return `import type * as React from "react";
 import { IconBase } from "../IconBase";
@@ -84,11 +123,7 @@ export function ${componentName}({
 }: IconProps): React.ReactElement {
 ${regHoist}  let paths: React.ReactElement;
   switch (weight) {
-${cases.join("\n")}
-    // "bold" and "sharp" were removed as weights; both render regular.
-    case "bold":
-    case "sharp":
-    case "regular":
+${switchBody}    case "regular":
     default:
 ${defaultBody}
       break;

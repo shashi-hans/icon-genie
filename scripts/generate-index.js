@@ -13,7 +13,6 @@ import {
   extractSvgInner,
   centerlinePaths,
 } from "./utils.js";
-import { deriveWeightInner } from "./derive-weights.js";
 
 if (!fs.existsSync(MANIFEST_PATH)) {
   console.error(
@@ -77,12 +76,14 @@ const icons = manifest.map((m) => {
     // malformed centerline -> fall through to the per-weight reader (empties)
   }
   if (centerline) {
+    // No `weights` here on purpose. They are a pure function of `centerline`, and
+    // writing both put 12 MB of derived markup in a 26 MB file to save 1 MB of
+    // source. readSeed() derives them on load instead.
     return {
       name: m.name,
       component: m.component,
       kind: "stroke",
       centerline,
-      weights: deriveWeightInner(centerline),
     };
   }
 

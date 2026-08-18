@@ -5,11 +5,8 @@
 // the serving copy. Approved contributions are added on top, which is what makes
 // an approval visible immediately instead of at the next build.
 //
-// Two shapes are served, because the full catalogue is ~4.4 MB of path markup
-// and the gallery only needs one weight to paint the grid:
-//
-//   summary  every icon, regular weight only  (~1/6 the bytes)
-//   full     every icon, all six weights
+// Served a page at a time, filtered and sliced in server/routes/icons.js: the
+// catalogue is far too large to hand to a browser whole.
 import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -30,11 +27,23 @@ export const WEIGHTS = ["thin", "regular", "fill", "duotone"];
 // artwork on disk, which is a different question from what the API serves.
 export const SOURCE_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
 
-/** Read the built catalogue. Returns [] when the build has not run yet. */
+/**
+ * Read the built catalogue. Returns [] when the build has not run yet.
+ *
+ * A stroke icon is stored as its centerline paths only, so its weights are
+ * derived here. Keeping both in the file cost 12 MB of markup that is a pure
+ * function of 1 MB of source.
+ */
 export function readSeed() {
   try {
     const data = JSON.parse(readFileSync(SEED, "utf8"));
-    return Array.isArray(data.icons) ? data.icons : [];
+    if (!Array.isArray(data.icons)) return [];
+    for (const icon of data.icons) {
+      if (icon.kind === "stroke" && !icon.weights && icon.centerline) {
+        icon.weights = deriveWeightInner(icon.centerline);
+      }
+    }
+    return data.icons;
   } catch {
     return [];
   }

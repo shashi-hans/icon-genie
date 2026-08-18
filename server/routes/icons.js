@@ -35,8 +35,9 @@ function intParam(value, fallback, min, max) {
 /** Substring match on the icon name and its component name, case-insensitive. */
 function search(icons, q) {
   if (!q) return icons;
+  // Names are kebab-case already, so only the component name needs folding.
   return icons.filter(
-    (icon) => icon.name.toLowerCase().includes(q) || icon.component.toLowerCase().includes(q)
+    (icon) => icon.name.includes(q) || icon.component.toLowerCase().includes(q)
   );
 }
 

@@ -454,7 +454,7 @@
         <div class="who-menu" id="who-menu" role="menu" hidden>
           <button class="who-item" id="hist-open" type="button" role="menuitem">History</button>
           <a class="who-item" id="admin-link" href="./admin.html" role="menuitem" hidden>Icon approval</a>
-          <button class="who-item" id="login-open" type="button" role="menuitem">Log in</button>
+          <button class="who-item" id="login-open" type="button" role="menuitem">Admin login</button>
           <button class="who-item" id="logout-btn" type="button" role="menuitem" hidden>Log out</button>
         </div>
       </div>
@@ -635,7 +635,7 @@
       <div class="modal-backdrop" data-loginclose></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
         <button class="modal-close" type="button" data-loginclose aria-label="Close">✕</button>
-        <h2 id="login-title">Admin log in</h2>
+        <h2 id="login-title">Admin login</h2>
         <div class="modal-meta">
           Browsing and generating need no account — you are a guest by default. Logging in is
           only for reviewing the icons people contribute.
@@ -868,11 +868,22 @@
             `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>` +
             `<span class="name">${icon.name}</span>` +
             (icon.contributed ? `<span class="cell-tag">new</span>` : "");
-          cell.addEventListener("click", () => openModal(icon));
+          // The icon it stands for, so one listener on the grid can find it
+          // instead of one closure per cell.
+          cell.dataset.name = icon.name;
           frag.appendChild(cell);
         }
         grid.replaceChildren(frag);
       }
+
+      // Delegated: the grid outlives its cells, so one listener replaces the one
+      // per cell that used to be attached on every render.
+      grid.addEventListener("click", (e) => {
+        const cell = e.target.closest(".cell");
+        if (!cell) return;
+        const icon = icons.find((i) => i.name === cell.dataset.name);
+        if (icon) openModal(icon);
+      });
 
       /* --- Paging ----------------------------------------------------------
        * The catalogue is past 8,000 icons, so neither the whole list nor the
@@ -921,6 +932,8 @@
 
       function renderPager() {
         if (!pageTotal) {
+          countEl.textContent = currentQuery ? `No matches in ${catalogueTotal} icons` : "";
+          pageStatus.textContent = "";
           pager.hidden = true;
           return;
         }
@@ -1002,9 +1015,6 @@
         return icon.regular || "";
       }
 
-      /** True once an icon carries all six weights. */
-      const isFullyLoaded = (icon) => Boolean(icon?.weights);
-
       /* --- Modal ----------------------------------------------------------- */
       function refreshModal() {
         if (!modalIcon) return;
@@ -1044,15 +1054,11 @@
 
       function openModal(icon) {
         modalIcon = icon;
-        modalWeight = isFullyLoaded(icon) ? currentWeight : "regular";
-        // Offering weights we do not have yet would show regular under five other
-        // labels, so they stay disabled until the full catalogue arrives.
-        const ready = isFullyLoaded(icon);
+        modalWeight = currentWeight;
+        // A page arrives with every weight, so no tab needs disabling. This used
+        // to wait on a second request for the full catalogue.
         weightTabs.innerHTML = weights
-          .map(
-            (w) =>
-              `<button type="button" data-weight="${w}"${ready ? "" : " disabled title='Still loading'"}>${w}</button>`
-          )
+          .map((w) => `<button type="button" data-weight="${w}">${w}</button>`)
           .join("");
         refreshModal();
         modal.hidden = false;
@@ -1177,7 +1183,10 @@
         loadPage().then(() => window.scrollTo({ top: 0 }));
       });
       nextBtn.addEventListener("click", () => {
-        pageOffset = pageOffset + pageLimit;
+        // Step by the number of icons on screen, not by the limit pageSize() would
+        // compute now: a resize between the fetch and the click would otherwise
+        // move the boundary and skip a row.
+        pageOffset = pageOffset + icons.length;
         loadPage().then(() => window.scrollTo({ top: 0 }));
       });
       // A resize changes how many cells fit. Only refetch when the count really

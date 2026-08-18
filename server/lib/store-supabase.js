@@ -176,13 +176,30 @@ export function createSupabaseStore() {
   /** @type {Map<string, object>|null} */
   let seed = null;
   let seedAt = -1;
+  /** @type {object[]|null} the same icons, name-sorted */
+  let seedSorted = null;
   function seedMap() {
     const at = seedMtime();
     if (!seed || at !== seedAt) {
       seed = new Map(readSeed().map((icon) => [icon.name, icon]));
+      seedSorted = null;
       seedAt = at;
     }
     return seed;
+  }
+
+  /**
+   * The built icons, name-sorted, sorted once per rebuild rather than per
+   * request. docs/icons.json is written in component order, so this is a real
+   * sort, and doing it on every catalogue read cost most of a page request.
+   *
+   * Callers must not mutate the result: it is the cached array itself, handed
+   * out without copying because a page request only ever filters or slices it.
+   */
+  function seedList() {
+    seedMap();
+    if (!seedSorted) seedSorted = [...seed.values()].sort(byName);
+    return seedSorted;
   }
 
   const byName = (a, b) => a.name.localeCompare(b.name);
@@ -210,6 +227,15 @@ export function createSupabaseStore() {
   // page load would otherwise fill the log.
   let warnedNoHiddenTable = false;
 
+  // The hidden set is read on every catalogue build, so it is cached. Hiding or
+  // restoring clears it, which makes the change immediate on the instance that
+  // did it; the TTL bounds how long another instance can serve a stale set.
+  const HIDDEN_TTL_MS = 15000;
+  /** @type {Set<string>|null} */
+  let hiddenSet = null;
+  let hiddenReadAt = 0;
+  const invalidateHidden = () => { hiddenSet = null; };
+
   /**
    * Names an admin has taken out of the gallery.
    *
@@ -220,9 +246,12 @@ export function createSupabaseStore() {
    * migration is applied, and the log says so.
    */
   async function hiddenNames() {
+    if (hiddenSet && Date.now() - hiddenReadAt < HIDDEN_TTL_MS) return hiddenSet;
     try {
       const rows = await sb("GET", "/hidden_icons?select=name");
-      return new Set((rows ?? []).map((row) => row.name));
+      hiddenSet = new Set((rows ?? []).map((row) => row.name));
+      hiddenReadAt = Date.now();
+      return hiddenSet;
     } catch (err) {
       // PGRST205: PostgREST cannot find the table in its schema cache.
       if (err instanceof PostgrestError && err.code === "PGRST205") {
@@ -233,10 +262,23 @@ export function createSupabaseStore() {
               "Serving every icon; admin hide/restore will fail until then."
           );
         }
-        return new Set();
+        hiddenSet = new Set();
+        hiddenReadAt = Date.now();
+        return hiddenSet;
       }
       throw err;
     }
+  }
+
+  /** Merge two name-sorted lists without re-sorting either. */
+  function mergeByName(a, b) {
+    const out = [];
+    let i = 0;
+    let j = 0;
+    while (i < a.length && j < b.length) out.push(byName(a[i], b[j]) <= 0 ? a[i++] : b[j++]);
+    while (i < a.length) out.push(a[i++]);
+    while (j < b.length) out.push(b[j++]);
+    return out;
   }
 
   /**
@@ -246,9 +288,14 @@ export function createSupabaseStore() {
    */
   async function catalogue() {
     const [hidden, contributed] = await Promise.all([hiddenNames(), contributedIcons()]);
-    return [...seedMap().values(), ...contributed]
-      .filter((icon) => !hidden.has(icon.name))
-      .sort(byName);
+    const built = seedList();
+    // The usual case: nothing hidden and every contribution already built. Then
+    // the answer is the cached array, with no copy, filter or sort at all.
+    if (!hidden.size && !contributed.length) return built;
+    const merged = contributed.length
+      ? mergeByName(built, [...contributed].sort(byName))
+      : built;
+    return hidden.size ? merged.filter((icon) => !hidden.has(icon.name)) : merged;
   }
 
   return {
@@ -373,6 +420,24 @@ export function createSupabaseStore() {
       return catalogue();
     },
 
+    /**
+     * Whether the catalogue has this name at all, hidden or not.
+     *
+     * Deliberately not `listIcons().some(...)`: that costs two round trips and a
+     * sort of the whole catalogue to answer one yes/no. A built icon is answered
+     * from the cached seed with no query; anything else takes one indexed lookup.
+     * Hidden names still count, so hiding an already-hidden icon stays a no-op
+     * rather than a 404.
+     */
+    async hasIcon(name) {
+      if (seedMap().has(name)) return true;
+      const rows = await sb(
+        "GET",
+        `/submissions?status=eq.approved&name=${eq(name)}&select=id&limit=1`
+      );
+      return (rows ?? []).length > 0;
+    },
+
     async listIconSummaries() {
       return (await catalogue()).map(toSummary);
     },
@@ -387,6 +452,7 @@ export function createSupabaseStore() {
         body: { name, hidden_by: by ?? null },
         prefer: "resolution=merge-duplicates",
       });
+      invalidateHidden();
       return true;
     },
 
@@ -395,6 +461,7 @@ export function createSupabaseStore() {
       const rows = await sb("DELETE", `/hidden_icons?name=${eq(name)}`, {
         prefer: "return=representation",
       });
+      invalidateHidden();
       return (rows ?? []).length > 0;
     },
 
