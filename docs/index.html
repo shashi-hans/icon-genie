@@ -370,6 +370,14 @@
       }
       .who-item:hover { background: var(--panel); color: var(--accent); }
       .who-badge.admin { border-color: var(--accent); color: var(--accent); }
+      #pager {
+        display: flex; align-items: center; justify-content: center;
+        gap: 14px; padding: 2px 20px 28px;
+        color: var(--muted); font-size: 13px;
+      }
+      #pager[hidden] { display: none; }
+      #pager button:disabled { opacity: 0.4; cursor: default; }
+      #pager button:disabled:hover { border-color: var(--border); }
       #load-note {
         max-width: 900px; margin: 0 auto; padding: 0 20px 4px;
         color: var(--muted); font-size: 12px;
@@ -477,6 +485,11 @@
 
     <div id="load-note" hidden></div>
     <main id="grid"><div class="empty">Loading icons…</div></main>
+    <nav id="pager" hidden aria-label="Icon pages">
+      <button class="btn" id="page-prev" type="button">← Prev</button>
+      <span id="page-status"></span>
+      <button class="btn" id="page-next" type="button">Next →</button>
+    </nav>
 
     <div id="modal" hidden>
       <div class="modal-backdrop" data-close></div>
@@ -670,6 +683,10 @@
       const search = document.getElementById("search");
       const countEl = document.getElementById("count");
       const weightEl = document.getElementById("weight");
+      const pager = document.getElementById("pager");
+      const pageStatus = document.getElementById("page-status");
+      const prevBtn = document.getElementById("page-prev");
+      const nextBtn = document.getElementById("page-next");
       const sizeEl = document.getElementById("size");
       const sizeValEl = document.getElementById("size-val");
       const colorEl = document.getElementById("color");
@@ -857,19 +874,120 @@
         grid.replaceChildren(frag);
       }
 
-      function applyFilter() {
-        const q = search.value.trim().toLowerCase();
-        const list = q
-          ? icons.filter(
-              (i) =>
-                i.name.toLowerCase().includes(q) ||
-                i.component.toLowerCase().includes(q) ||
-                // Forward-compatible: search tags if the data ever carries them.
-                (i.tags && i.tags.some((t) => t.toLowerCase().includes(q)))
-            )
-          : icons;
-        countEl.textContent = `${list.length} / ${icons.length} icons`;
-        render(list);
+      /* --- Paging ----------------------------------------------------------
+       * The catalogue is past 8,000 icons, so neither the whole list nor the
+       * whole search can come to the browser: the grid asks for the slice it can
+       * actually paint and the filter runs on the server. See
+       * server/routes/icons.js.
+       */
+      let pageOffset = 0;
+      let pageLimit = 120;
+      let pageTotal = 0;
+      let catalogueTotal = 0;
+      let currentQuery = "";
+      let weightsApplied = false;
+
+      /**
+       * How many icons fit the viewport, plus a screen of slack so a short scroll
+       * does not immediately need another request.
+       *
+       * Derived rather than fixed because the cell size is a user control: at
+       * size 16 a laptop screen holds several hundred cells, at 96 a few dozen.
+       */
+      const PAGE_SCREENS = 0.55;
+
+      function pageSize() {
+        const styles = getComputedStyle(grid);
+        const gap = parseFloat(styles.gap) || 10;
+        const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+        const minCol = 120; // matches grid-template-columns
+        const usable = Math.max(grid.clientWidth - padX, minCol);
+        const cols = Math.max(1, Math.floor((usable + gap) / (minCol + gap)));
+        // 16px padding top and bottom, the preview, its gap, and the name line.
+        const cellH = 32 + currentSize + 8 + 18;
+        // Fetch a fraction of a screenful rather than a whole one plus slack.
+        // Calibrated so 1920x993 asks for 84 cells; scaling the row count keeps
+        // that proportion at every other viewport and through the preview-size
+        // control, instead of pinning one number that is wrong everywhere else.
+        const rows = Math.max(1, Math.ceil((window.innerHeight / (cellH + gap)) * PAGE_SCREENS));
+        // The server caps at 400; asking for more would just be trimmed.
+        return Math.min(Math.max(cols * rows, 28), 400);
+      }
+
+      /** Re-draw the icons already in hand, for a weight or colour change. */
+      function renderCurrent() {
+        render(icons);
+      }
+
+      function renderPager() {
+        if (!pageTotal) {
+          pager.hidden = true;
+          return;
+        }
+        const from = pageOffset + 1;
+        const to = Math.min(pageOffset + icons.length, pageTotal);
+        const scope = currentQuery
+          ? `${pageTotal} match${pageTotal === 1 ? "" : "es"} of ${catalogueTotal}`
+          : `${pageTotal} icons`;
+        countEl.textContent = `${from}–${to} of ${scope}`;
+        pageStatus.textContent = `${from}–${to} of ${pageTotal}`;
+        prevBtn.disabled = pageOffset <= 0;
+        nextBtn.disabled = to >= pageTotal;
+        pager.hidden = pageTotal <= icons.length && pageOffset === 0;
+      }
+
+      let pageRequest = 0;
+
+      async function loadPage({ reset = false } = {}) {
+        if (reset) pageOffset = 0;
+        pageLimit = pageSize();
+        const params = new URLSearchParams({
+          offset: String(pageOffset),
+          limit: String(pageLimit),
+        });
+        if (currentQuery) params.set("q", currentQuery);
+
+        // Only the newest request may paint: typing fires several and they can
+        // come back out of order.
+        const ticket = ++pageRequest;
+        try {
+          const res = await api(`/api/icons?${params.toString()}`);
+          if (ticket !== pageRequest) return;
+          icons = res.icons || [];
+          pageTotal = res.total ?? icons.length;
+          catalogueTotal = res.catalogueTotal ?? pageTotal;
+          pageOffset = res.offset ?? pageOffset;
+          if (!weightsApplied) {
+            applyWeightOptions(res.weights);
+            weightsApplied = true;
+          }
+          if (!icons.length) {
+            grid.innerHTML = '<div class="empty">No icons match your search.</div>';
+          } else {
+            render(icons);
+          }
+          renderPager();
+          setLoadingNote("");
+        } catch (err) {
+          if (ticket !== pageRequest) return;
+          grid.innerHTML =
+            `<div class="empty">Could not load icons (${err.message}).<br/>` +
+            `The gallery needs the API: run <code>npm run dev</code>, ` +
+            `after <code>npm run build:icons</code>.</div>`;
+          countEl.textContent = "";
+          pager.hidden = true;
+        }
+      }
+
+      let searchTimer = null;
+      function scheduleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          const next = search.value.trim().toLowerCase();
+          if (next === currentQuery) return;
+          currentQuery = next;
+          loadPage({ reset: true });
+        }, 220);
       }
 
       /**
@@ -1027,9 +1145,10 @@
         const icon = modalIcon;
         try {
           await api(`/api/icons/${encodeURIComponent(icon.name)}`, { method: "DELETE" });
-          icons = icons.filter((i) => i !== icon);
           closeModal();
-          applyFilter();
+          // Refetch rather than splice: the icon left the catalogue, so the page
+          // is one short and the totals have moved.
+          await loadPage();
           showToast(`Deleted ${icon.name}`);
         } catch (err) {
           showToast(`Couldn't delete: ${err.message}`);
@@ -1047,10 +1166,28 @@
       });
 
       /* --- Control bar wiring --------------------------------------------- */
-      search.addEventListener("input", applyFilter);
+      search.addEventListener("input", scheduleSearch);
       weightEl.addEventListener("change", () => {
         currentWeight = weightEl.value;
-        applyFilter();
+        // A page carries every weight, so switching one is a re-draw, not a fetch.
+        renderCurrent();
+      });
+      prevBtn.addEventListener("click", () => {
+        pageOffset = Math.max(0, pageOffset - pageLimit);
+        loadPage().then(() => window.scrollTo({ top: 0 }));
+      });
+      nextBtn.addEventListener("click", () => {
+        pageOffset = pageOffset + pageLimit;
+        loadPage().then(() => window.scrollTo({ top: 0 }));
+      });
+      // A resize changes how many cells fit. Only refetch when the count really
+      // moved, so dragging a window edge does not fire a request per pixel.
+      let resizeTimer = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (pageSize() > pageLimit) loadPage();
+        }, 250);
       });
       sizeEl.addEventListener("input", () => {
         currentSize = Number(sizeEl.value);
@@ -1647,10 +1784,10 @@
       });
 
       /* --- Loading the catalogue ------------------------------------------- */
-      // Two requests, deliberately. /api/icons returns every icon with only its
-      // regular weight, which is about a sixth of the bytes and enough to paint
-      // the grid; /api/icons/all follows with all six weights and replaces it.
-      // The weight selector and the detail dialog stay on regular until then.
+      // One request per page. /api/icons takes q, offset and limit and answers
+      // with that slice at every weight, so the weight selector and the detail
+      // dialog work as soon as the grid paints. Filtering is the server's job
+      // because the catalogue is far larger than a browser should hold.
       function applyWeightOptions(list) {
         if (!Array.isArray(list) || !list.length) return;
         weights = list;
@@ -1665,45 +1802,7 @@
         el.hidden = !text;
       }
 
-      async function loadIcons() {
-        // Stage 1: paint as soon as possible.
-        try {
-          const summary = await api("/api/icons");
-          icons = summary.icons || [];
-          applyWeightOptions(summary.weights);
-          applyFilter();
-          setLoadingNote(`Showing regular weight — loading all ${weights.length} weights…`);
-        } catch (err) {
-          grid.innerHTML =
-            `<div class="empty">Could not load icons (${err.message}).<br/>` +
-            `The gallery needs the API: run <code>npm run dev</code>, ` +
-            `after <code>npm run build:icons</code>.</div>`;
-          countEl.textContent = "";
-          return;
-        }
-
-        // Stage 2: the full set. A failure here leaves a usable gallery at regular
-        // weight, so it degrades rather than breaking.
-        try {
-          const full = await api("/api/icons/all");
-          const byName = new Map((full.icons || []).map((icon) => [icon.name, icon]));
-          // Preserve the current order and any icon the second call somehow lacks.
-          icons = icons.map((icon) => byName.get(icon.name) ?? icon);
-          for (const icon of byName.values()) {
-            if (!icons.some((i) => i.name === icon.name)) icons.push(icon);
-          }
-          applyFilter();
-          if (!modal.hidden && modalIcon) {
-            modalIcon = icons.find((i) => i.name === modalIcon.name) ?? modalIcon;
-            openModal(modalIcon);
-          }
-          setLoadingNote("");
-        } catch {
-          setLoadingNote("All weights unavailable — showing regular only.");
-        }
-      }
-
-      loadIcons();
+      loadPage();
     </script>
   </body>
 </html>

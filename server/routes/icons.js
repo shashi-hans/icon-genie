@@ -1,10 +1,16 @@
-// GET /api/icons      every icon, regular weight only  — the fast first payload
-// GET /api/icons/all  every icon, all six weights      — fetched after paint
+// GET /api/icons      one page of icons, all weights, optionally filtered
+// GET /api/icons/all   the same, kept for callers that already use the path
 //
-// Split because the full catalogue is several megabytes of path markup, and the
-// grid only draws one weight. The gallery renders from the summary, then swaps in
-// the full set once it arrives, so the first screen does not wait on bytes it
-// cannot show.
+// Both are paged. The catalogue passed 8,000 icons, and serving it whole meant a
+// 25 MB response — over the body limit a serverless function will return, and
+// more DOM than a browser will paint. So the page size and the search both moved
+// here: the client asks for the slice it can draw, and the filter runs against
+// the in-memory catalogue instead of shipping everything so the client can
+// discard most of it.
+//
+// A page carries every weight, which is why there is no longer a second request
+// for the full set: at these page sizes the difference is a few hundred KB, and
+// the weight selector and the detail dialog work the moment the grid paints.
 //
 // Public: these are the icons the site exists to hand out. The response carries
 // no submission detail beyond the credit a contributor asked to have shown.
@@ -12,25 +18,62 @@ import { handler, json, methodIs } from "../lib/http.js";
 import { getStore } from "../lib/store.js";
 import { WEIGHTS } from "../lib/icons.js";
 
+const DEFAULT_LIMIT = 120;
+// A page of this many icons with every weight is roughly 1.2 MB, which leaves
+// headroom under the response cap. The client asks for what its viewport needs,
+// well under this; the ceiling is here to stop a hand-written request from
+// asking for the whole catalogue again.
+const MAX_LIMIT = 400;
+const MAX_QUERY_CHARS = 60;
+
+function intParam(value, fallback, min, max) {
+  const n = Number.parseInt(Array.isArray(value) ? value[0] : value, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(n, min), max);
+}
+
+/** Substring match on the icon name and its component name, case-insensitive. */
+function search(icons, q) {
+  if (!q) return icons;
+  return icons.filter(
+    (icon) => icon.name.toLowerCase().includes(q) || icon.component.toLowerCase().includes(q)
+  );
+}
+
+async function page(req, res) {
+  const query = req.query ?? {};
+  const q = String(Array.isArray(query.q) ? query.q[0] : (query.q ?? ""))
+    .trim()
+    .toLowerCase()
+    .slice(0, MAX_QUERY_CHARS);
+  const limit = intParam(query.limit, DEFAULT_LIMIT, 1, MAX_LIMIT);
+
+  const all = await getStore().listIcons();
+  const matched = search(all, q);
+
+  // Clamped to the result count so an offset past the end returns the last page
+  // rather than an empty grid the user has to page back out of.
+  const maxOffset = Math.max(0, matched.length - 1);
+  const offset = Math.min(intParam(query.offset, 0, 0, Number.MAX_SAFE_INTEGER), maxOffset);
+
+  return json(res, 200, {
+    icons: matched.slice(offset, offset + limit),
+    weights: WEIGHTS,
+    total: matched.length,
+    catalogueTotal: all.length,
+    offset,
+    limit,
+    q,
+    detail: "all",
+  });
+}
+
 export const list = handler(async (req, res) => {
   if (!methodIs(req, res, "GET")) return;
-  const icons = await getStore().listIconSummaries();
-  return json(res, 200, {
-    icons,
-    weights: WEIGHTS,
-    total: icons.length,
-    // "regular" tells the client this payload is not the full set yet.
-    detail: "regular",
-  });
+  return page(req, res);
 });
 
 export const all = handler(async (req, res) => {
   if (!methodIs(req, res, "GET")) return;
-  const icons = await getStore().listIcons();
-  return json(res, 200, {
-    icons,
-    weights: WEIGHTS,
-    total: icons.length,
-    detail: "all",
-  });
+  return page(req, res);
 });
