@@ -15,6 +15,9 @@ const ROUTES = {
   "GET /icons/all": () => import("./routes/icons.js").then((m) => ({ default: m.all })),
   "GET /submissions": () => import("./routes/submissions.js"),
   "POST /submissions": () => import("./routes/submissions.js"),
+  // Exact routes are matched before the patterns below, so this is not shadowed
+  // by /icons/:name.
+  "GET /icons/hidden": () => import("./routes/icon-item.js").then((m) => ({ default: m.hidden })),
 };
 
 // Routes with a path parameter, matched after the exact table above.
@@ -24,6 +27,12 @@ const PATTERNS = [
     methods: ["GET", "PATCH", "DELETE"],
     params: ["id"],
     load: () => import("./routes/submission-item.js"),
+  },
+  {
+    re: /^\/icons\/([^/]+)$/,
+    methods: ["DELETE", "POST"],
+    params: ["name"],
+    load: () => import("./routes/icon-item.js"),
   },
 ];
 

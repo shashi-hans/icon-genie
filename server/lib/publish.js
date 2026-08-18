@@ -22,11 +22,12 @@
 // Neither runs `build:icons`: it optimizes 9k SVGs and rewrites src/, which is
 // far too much to do inside a request. Committing the source file is the durable
 // step; the build happens on the next deploy or release.
-import { mkdir, writeFile, access, rm } from "node:fs/promises";
+import { mkdir, writeFile, access, rm, rmdir, readdir } from "node:fs/promises";
 import { constants } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toCenterlineSvg } from "./validate.js";
+import { SOURCE_WEIGHTS } from "./icons.js";
 import "./env.js";
 
 // server/lib -> server -> repo root
@@ -46,9 +47,32 @@ async function treeIsWritable() {
   }
 }
 
+const WEIGHT_FILE_RE = new RegExp(`-(${SOURCE_WEIGHTS.join("|")})\\.svg$`);
+
+/**
+ * True when raw-svgs/<name>/ holds a hand-drawn six-weight set.
+ *
+ * Those directories are the package's built artwork. A contribution that happens
+ * to share a name must neither write into one — the build reads a centerline
+ * file in preference to the weight files, so it would replace the shipped icon —
+ * nor delete one. The submission API rejects such a name up front; this is the
+ * check at the point where files are actually touched.
+ */
+async function holdsBuiltArtwork(name) {
+  try {
+    const entries = await readdir(join(ROOT, "raw-svgs", name));
+    return entries.some((file) => WEIGHT_FILE_RE.test(file));
+  } catch {
+    return false; // no such directory, so nothing built under this name
+  }
+}
+
 /** Write the icon into the local working tree. */
 async function publishLocal(name, paths) {
   const rel = iconFilePath(name);
+  if (await holdsBuiltArtwork(name)) {
+    throw new Error(`raw-svgs/${name}/ holds a built icon; refusing to write over it.`);
+  }
   const abs = join(ROOT, rel);
   await mkdir(dirname(abs), { recursive: true });
   await writeFile(abs, toCenterlineSvg(paths), "utf8");
@@ -113,15 +137,27 @@ async function publishToGitHub(name, paths, contributor) {
   };
 }
 
-/** Remove the icon's source file from the local working tree. */
+/**
+ * Remove the icon's source file from the local working tree.
+ *
+ * Only that one file: the directory may hold a built six-weight set, and
+ * deleting the directory would take the shipped artwork with it.
+ */
 async function unpublishLocal(name) {
   const rel = iconFilePath(name);
   const abs = join(ROOT, rel);
-  try {
-    await rm(dirname(abs), { recursive: true, force: true });
-  } catch (err) {
-    return { mode: "local", filePath: rel, url: null, detail: `Could not remove ${rel}: ${err.message}`, error: err.message };
+  if (await holdsBuiltArtwork(name)) {
+    return {
+      mode: "none",
+      filePath: rel,
+      url: null,
+      detail: `raw-svgs/${name}/ holds a built icon; its files were left in place.`,
+    };
   }
+  await rm(abs, { force: true });
+  // The directory existed only to hold that file, so take it too — but with
+  // rmdir, which refuses a directory that still has something in it.
+  await rmdir(dirname(abs)).catch(() => {});
   return {
     mode: "local",
     filePath: rel,

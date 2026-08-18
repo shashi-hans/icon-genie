@@ -10,15 +10,25 @@
 //
 //   summary  every icon, regular weight only  (~1/6 the bytes)
 //   full     every icon, all six weights
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+// One derivation for Node, shared with the build. The library's runtime copy is
+// src/StrokeIcon.tsx (TypeScript, and published, so it cannot import from here)
+// and the browser's is docs/stroke-weights.js; all three carry the same widths,
+// named in each file's header.
+import { deriveWeightInner } from "../../scripts/derive-weights.js";
 
 // server/lib -> server -> repo root
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SEED = join(ROOT, "docs", "icons.json");
 
-export const WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
+// What the API serves. Mirrors scripts/utils.js.
+export const WEIGHTS = ["thin", "regular", "fill", "duotone"];
+
+// The weight files that exist under raw-svgs/. Used for recognising built
+// artwork on disk, which is a different question from what the API serves.
+export const SOURCE_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
 
 /** Read the built catalogue. Returns [] when the build has not run yet. */
 export function readSeed() {
@@ -27,6 +37,21 @@ export function readSeed() {
     return Array.isArray(data.icons) ? data.icons : [];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Modification time of the built catalogue, or 0 when it is not there.
+ *
+ * Callers that cache anything derived from readSeed() compare this and rebuild
+ * when it moves. Without it a running server keeps serving the catalogue it read
+ * at boot, so every `npm run build:icons` needs a restart to show up.
+ */
+export function seedMtime() {
+  try {
+    return statSync(SEED).mtimeMs;
+  } catch {
+    return 0;
   }
 }
 
@@ -47,30 +72,30 @@ export function toSummary(icon) {
   return entry;
 }
 
-/** Derive the six weights of a stroke-based icon from its centerline paths. */
-export function deriveWeightInner(paths) {
-  const list = Array.isArray(paths) ? paths : [paths];
-  const stroked = (w) =>
-    list
-      .map(
-        (d) =>
-          `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`,
-      )
-      .join("");
-  const filled = (opacity) =>
-    list
-      .map((d) => `<path d="${d}" fill="currentColor"${opacity == null ? "" : ` opacity="${opacity}"`}/>`)
-      .join("");
-  // Widths match src/strokeWeights.ts and scripts/derive-weights.js, so what the
-  // gallery shows is what the React component renders.
-  return {
-    thin: stroked(9),
-    light: stroked(13),
-    regular: stroked(18),
-    bold: stroked(27),
-    fill: filled(),
-    duotone: filled(0.2) + stroked(18),
-  };
+export { deriveWeightInner };
+
+// Cached because readSeed() parses several megabytes and isBuiltIcon sits on
+// the path of every contribution. Keyed on the catalogue's mtime so a rebuild is
+// picked up without restarting the process.
+/** @type {Set<string>|null} */
+let builtNames = null;
+let builtNamesAt = -1;
+
+/**
+ * True when `name` belongs to an icon the package already builds from
+ * raw-svgs/, as opposed to an approved contribution.
+ *
+ * The build reads a centerline file in preference to a directory's six weight
+ * files, so publishing a contribution under a built icon's name would replace
+ * the shipped drawing. The submission API refuses the name for that reason.
+ */
+export function isBuiltIcon(name) {
+  const at = seedMtime();
+  if (!builtNames || at !== builtNamesAt) {
+    builtNames = new Set(readSeed().filter((icon) => !icon.contributed).map((icon) => icon.name));
+    builtNamesAt = at;
+  }
+  return builtNames.has(name);
 }
 
 /** Build a catalogue entry from an approved submission. */

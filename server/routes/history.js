@@ -7,7 +7,7 @@
 // endpoint that takes a guestId parameter, so there is nothing to tamper with.
 import { handler, json, methodIs, readJson, HttpError } from "../lib/http.js";
 import { ensureGuestId } from "../lib/session.js";
-import { getStore, isEphemeral } from "../lib/store.js";
+import { getStore } from "../lib/store.js";
 import { kebabName, validatePaths } from "../lib/validate.js";
 
 export default handler(async (req, res) => {
@@ -40,5 +40,5 @@ export default handler(async (req, res) => {
       return { ...entry, status: submission?.status ?? null };
     })
   );
-  return json(res, 200, { entries: withStatus, ephemeralStore: isEphemeral() });
+  return json(res, 200, { entries: withStatus });
 });

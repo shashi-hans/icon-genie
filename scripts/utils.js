@@ -14,9 +14,15 @@ export const SRC_DIR = path.join(ROOT, "src");
 export const DOCS_DIR = path.join(ROOT, "docs");
 export const MANIFEST_PATH = path.join(ICONS_OUT_DIR, "manifest.json");
 
-// The six Phosphor weights and how each is suffixed in Phosphor's asset repo.
-// "regular" has no suffix in Phosphor; we normalise everything to a suffix.
-export const WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
+// What the library exposes. `light`, `bold` and `sharp` were dropped; they still
+// type-check and render (thin, regular, regular) so existing calls keep working.
+export const WEIGHTS = ["thin", "regular", "fill", "duotone"];
+
+// What actually exists on disk under raw-svgs/<icon>/. Phosphor ships these six
+// and nothing else, so importing and drafting work from this list while the
+// build emits the list above. `light` is still imported and still on disk; it is
+// no longer a weight the library offers, and weight="light" renders thin.
+export const SOURCE_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
 
 // "airplane-in-flight" -> "AirplaneInFlight". Guards against a leading digit
 // (not valid as the start of a JS identifier) by prefixing "Icon".

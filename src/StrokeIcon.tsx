@@ -3,12 +3,12 @@ import { IconBase } from "./IconBase";
 import type { IconProps } from "./types";
 import { STROKE_WIDTHS } from "./strokeWeights";
 
-// Renders an AI-generated icon defined by 1–4 centerline paths, deriving all six
-// Phosphor weights at render time:
-//   thin / light / regular / bold -> the same paths stroked at increasing widths,
-//   fill                          -> the paths filled as solid silhouettes,
-//   duotone                       -> a faded fill behind the regular stroke.
-// One drawing, six coherent weights — no per-weight model output to keep in sync.
+// Renders an AI-generated icon defined by 1–4 centerline paths, deriving all four
+// weights at render time:
+//   thin / regular -> the same paths stroked at two widths,
+//   fill           -> the paths filled as solid silhouettes,
+//   duotone        -> a faded fill behind the regular stroke.
+// One drawing, four coherent weights — no per-weight model output to keep in sync.
 // `color` drives the stroke (or fill), matching the rest of the library's API.
 //
 // A separate path per disconnected line is what makes compound icons work: a
@@ -40,10 +40,14 @@ export function StrokeIcon({
     );
   }
 
+  // Removed weights still type-check and still render: light was the step below
+  // regular, bold and sharp the steps above it.
+  const resolved = weight === "light" ? "thin" : weight === "bold" || weight === "sharp" ? "regular" : weight;
+
   const width =
-    weight === "duotone"
+    resolved === "duotone"
       ? STROKE_WIDTHS.regular
-      : STROKE_WIDTHS[weight as keyof typeof STROKE_WIDTHS] ?? STROKE_WIDTHS.regular;
+      : STROKE_WIDTHS[resolved as keyof typeof STROKE_WIDTHS] ?? STROKE_WIDTHS.regular;
 
   const strokes = paths.map((path, i) => (
     <path

@@ -13,7 +13,7 @@
 //   node scripts/draft-gap-icons.js
 import fs from "node:fs";
 import path from "node:path";
-import { RAW_SVGS_DIR, WEIGHTS } from "./utils.js";
+import { RAW_SVGS_DIR, SOURCE_WEIGHTS as WEIGHTS } from "./utils.js";
 
 const SW = { thin: 8, light: 12, regular: 16, bold: 24, fill: 16, duotone: 16 };
 

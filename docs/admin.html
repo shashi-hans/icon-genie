@@ -65,15 +65,6 @@
       main { padding: 20px; max-width: 1000px; margin: 0 auto; }
       .filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
       .note { color: var(--muted); }
-      .banner {
-        border: 1px solid var(--warn);
-        color: var(--warn);
-        border-radius: 8px;
-        padding: 8px 12px;
-        margin-bottom: 16px;
-        font-size: 12px;
-      }
-      .banner[hidden] { display: none; }
       .card {
         display: grid;
         grid-template-columns: auto 1fr;
@@ -174,10 +165,6 @@
       </section>
 
       <section id="queue" hidden>
-        <div class="banner" id="store-banner" hidden>
-          No database is connected, so this queue lives in the server's memory and empties
-          when the instance recycles. Wire a driver into <code>server/lib/store.js</code>.
-        </div>
         <div class="filters" id="filters">
           <button class="btn" type="button" data-status="pending" aria-selected="true">Pending</button>
           <button class="btn" type="button" data-status="approved" aria-selected="false">Approved</button>
@@ -190,26 +177,9 @@
     </main>
 
     <script type="module">
-      // Weight derivation mirrors scripts/derive-weights.js and src/StrokeIcon.tsx,
-      // so what an admin approves is what the library will render.
-      const STROKE = { thin: 9, light: 13, regular: 18, bold: 27 };
-      const stroked = (paths, w) =>
-        paths
-          .map(
-            (d) =>
-              `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`
-          )
-          .join("");
-      const filled = (paths, op) =>
-        paths.map((d) => `<path d="${d}" fill="currentColor"${op == null ? "" : ` opacity="${op}"`}/>`).join("");
-      const weights = (paths) => ({
-        thin: stroked(paths, STROKE.thin),
-        light: stroked(paths, STROKE.light),
-        regular: stroked(paths, STROKE.regular),
-        bold: stroked(paths, STROKE.bold),
-        fill: filled(paths),
-        duotone: filled(paths, 0.2) + stroked(paths, STROKE.regular),
-      });
+      // Same derivation the library and the build use, so what an admin approves
+      // is what the React component will render.
+      import { deriveWeightInner as weights } from "./stroke-weights.js";
 
       const gate = document.getElementById("gate");
       const gateForm = document.getElementById("gate-form");
@@ -220,7 +190,6 @@
       const statusEl = document.getElementById("status");
       const whoEl = document.getElementById("who");
       const logoutBtn = document.getElementById("logout");
-      const storeBanner = document.getElementById("store-banner");
       const filters = document.getElementById("filters");
       let filter = "pending";
 
@@ -251,7 +220,7 @@
 
       function cardHtml(row) {
         const w = weights(row.paths);
-        const previews = ["thin", "regular", "bold", "fill", "duotone"]
+        const previews = ["thin", "regular", "fill", "duotone"]
           .map(
             (name) =>
               `<figure><div class="cell"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${w[name]}</svg></div><figcaption>${name}</figcaption></figure>`
@@ -326,7 +295,6 @@
           const query = filter ? `?status=${encodeURIComponent(filter)}` : "";
           const data = await api(`/api/submissions${query}`);
           rows = data.submissions;
-          storeBanner.hidden = !data.ephemeralStore;
           const c = data.counts;
           statusEl.textContent = rows.length
             ? `${rows.length} shown · ${c.pending} pending, ${c.approved} approved, ${c.rejected} rejected`
@@ -389,13 +357,18 @@
         }
       }
 
+      // The anchor is put in the document and the URL is revoked on a timer:
+      // Firefox ignores a click on a detached anchor, and revoking in the same
+      // tick cancels the download it has not started reading yet.
       function download(name, text) {
         const url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" }));
         const a = document.createElement("a");
         a.href = url;
         a.download = name;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
 
       /** Show one confirm row on a card and hide the other. */

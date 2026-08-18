@@ -1,6 +1,6 @@
 # @shashi-hans/icons
 
-A tree-shakeable React icon library. Each icon is one component with a `weight` prop — `thin`, `light`, `regular`, `bold`, `fill`, or `duotone`. TypeScript-first, `currentColor` by default, ESM + CJS, `react` as the only peer.
+A tree-shakeable React icon library. Each icon is one component with a `weight` prop — `thin`, `regular`, `fill`, or `duotone`. TypeScript-first, `currentColor` by default, ESM + CJS, `react` as the only peer.
 
 ## Install
 
@@ -25,18 +25,20 @@ All icons forward any valid `<svg>` attribute, plus:
 | --- | --- | --- | --- |
 | `size` | `number \| string` | `24` | width & height (number = px) |
 | `color` | `string` | `"currentColor"` | drives `fill` |
-| `weight` | `thin \| light \| regular \| bold \| fill \| duotone` | `"regular"` | which weight to render |
+| `weight` | `thin \| regular \| fill \| duotone` | `"regular"` | which weight to render |
 | `aria-label` | `string` | — | sets `role="img"`; omit to keep decorative |
+
+**Removed weights still work.** `light`, `bold` and `sharp` are no longer weights the library offers and are absent from `ICON_WEIGHTS`, but they still type-check and still render — `light` as `thin`, `bold` and `sharp` as `regular` — so existing calls do not break. The six `-{thin,light,regular,bold,fill,duotone}.svg` files on disk are untouched: `scripts/utils.js` separates what exists as artwork (`SOURCE_WEIGHTS`) from what the library offers (`WEIGHTS`).
 
 ## Finding an icon
 
-- **Gallery** (searchable, click-to-copy): https://shashi-hans.github.io/shashihans-icons/
+- **Gallery** (searchable, click-to-copy): the Vercel deployment, or `npm run dev` for a local one
 - **Editor autocomplete** on `import { } from "@shashi-hans/icons"`
 - **At runtime:** `generateMetadata().iconNames`
 
 ## Generating an icon that does not exist yet
 
-The gallery has a **✨ Generate** button ([`sh-icon-genie`](https://github.com/shashi-hans/icon-genie)). Describe an icon, get 1–4 centerline paths back, preview all six weights, then download it or open a pull request adding it to this library. Three sources:
+The gallery has a **✨ Generate** button ([`sh-icon-genie`](https://github.com/shashi-hans/icon-genie)). Describe an icon, get 1–4 centerline paths back, preview all four weights, then download it or open a pull request adding it to this library. Three sources:
 
 | Source | What it uses | Steps | Cost |
 | --- | --- | --- | --- |
@@ -69,6 +71,8 @@ api/[...path].js   the only file under api/ — Vercel finds functions there, so
 
 `scripts/dev-server.js` uses the same `server/router.js`, so local and deployed routing cannot drift apart.
 
+**Vercel is the only deploy target.** A GitHub Pages workflow used to publish `docs/` on every push, from when the gallery read `docs/icons.json` in the browser. It now reads `/api/icons`, and generation, contribution, review, and the visitor count are all server-side, so a static host serves a page whose grid never fills. Keeping it would have meant maintaining a second, permanently degraded build. If a free public mirror is wanted back, the way to do it is a fallback in `index.html` to a committed `icons.json` — browse-only, with the buttons hidden — not a second deploy of the same page.
+
 | Route | Method | Who | Does |
 | --- | --- | --- | --- |
 | `/api/ai/chat/completions` | POST | anyone | relays a free generation to the model host; 6 calls per IP per minute |
@@ -81,7 +85,7 @@ api/[...path].js   the only file under api/ — Vercel finds functions there, so
 | `/api/submissions/:id` | GET, PATCH | admin | one submission; approve / reject / rename contributor |
 | `/api/submissions/:id` | DELETE | admin | remove it and its published source file |
 | `/api/icons` | GET | anyone | every icon, **regular weight only** — the fast first payload |
-| `/api/icons/all` | GET | anyone | every icon, all six weights |
+| `/api/icons/all` | GET | anyone | every icon, all four weights |
 
 **Visitors are guests by default.** No account is needed to browse, generate, or contribute — the header shows `Guest`, and a signed `sh_guest` cookie keys their history. That cookie is an identifier, not a credential: it grants nothing but read access to the history filed under it, so forging one gains an attacker nothing.
 
@@ -92,17 +96,21 @@ Two limits worth knowing before this carries real traffic:
 - **One shared admin credential** gives no record of who acted, and revoking access means rotating it for everyone. Fine for a private queue, wrong past a couple of admins — the upgrade is an identity provider, and GitHub OAuth fits because an admin here is already someone who merges the icon PRs.
 - **Login throttling is per-instance.** [server/lib/http.js](server/lib/http.js) counts attempts in memory, so on serverless an attacker spread across instances gets more than the stated 10 per 15 minutes. It raises the cost of guessing; it does not replace a strong password. Move it into the store for a limit that holds.
 
+**Response headers** are set in [vercel.json](vercel.json): `nosniff`, `strict-origin-when-cross-origin`, `x-frame-options: DENY`, and a CSP that pins `default-src` to `'self'` with `object-src`/`base-uri`/`frame-ancestors` at `'none'`. `connect-src` allows any `https:` origin because bring-your-own-key generation posts from the page to whichever provider the user names. The CSP carries `script-src 'unsafe-inline'`, which is most of what a CSP is for: both pages keep their script in an inline `<script type="module">`, and the directive cannot be tightened until that moves to a file. What it does buy is the plugin, base-tag, and framing directives, and a `connect-src` that stops an injected script from posting anywhere but over https. Moving the two inline scripts out and dropping `'unsafe-inline'` is the change that makes it real.
+
 ### Visitor count
 
 The header shows unique visitors, with page views in its tooltip. Uniqueness is judged by the **guest cookie that already exists for history** — no IP is read or stored, which keeps the counter clear of DPDP obligations and costs nothing in accuracy that matters here.
 
 It rides on `/api/auth/me`, which every page already calls once on load and which already has the guest id, so there is no second request. Only `?visit=1` records, and only the gallery sends it — reviewing icons in the admin page would otherwise inflate the number.
 
+Both numbers are counter rows in `site_counters`. `visit_guests` still decides whether a guest is new, but it is no longer counted: `select count(*)` over a table that gains a row per visitor is a sequential scan on every page load, and it also meant the number would drop as soon as old guest ids were pruned. Incrementing a counter only when the insert actually inserts fixes both. A guest who returns after their row is pruned counts twice, which is the price of not keeping their id forever.
+
 With the memory store the counters reset whenever the instance recycles. A KV driver would use `INCR` for views and a set for visitors.
 
 ### Reviewing submissions
 
-[docs/admin.html](docs/admin.html) lists each submission with all six weights rendered, the icon name and derived component name, what the user asked for, the model's summary, path count, source, timestamp, submitter id, and the target file path. **Approve** / **Reject** records the decision, and the guest sees the outcome in their own History.
+[docs/admin.html](docs/admin.html) lists each submission with all four weights rendered, the icon name and derived component name, what the user asked for, the model's summary, path count, source, timestamp, submitter id, and the target file path. **Approve** / **Reject** records the decision, and the guest sees the outcome in their own History.
 
 **Contributors are credited.** A name field sits directly above the Contribute button, capped at 20 characters, and the icon's detail panel shows a `Contributor :` line. Submitting with it empty asks once, inline, whether to contribute without a name — a blank field is far more often "not filled in yet" than "credit me as Anonymous", and the credit is public and permanent once approved. Choosing *Contribute as Anonymous* proceeds; *Add my name* returns focus to the field. The name is remembered in `localStorage` so a repeat contributor types it once.
 
@@ -112,11 +120,13 @@ It is the only self-described identity the API accepts — no email, no handle, 
 
 **One submission per icon.** Identity is the icon name plus its summary, normalized for case and spacing, so a repeated send returns 409 rather than putting the same drawing in front of an admin twice. The name alone would be too coarse (two different drawings can both be "shield"); the paths would be too fine, since regenerating shifts a coordinate and would read as new. Changing either field submits a variant. A database driver should enforce this with a UNIQUE constraint on `dedupeKey` — the current read-then-write check is safe only because the memory store is single-threaded per instance.
 
-**Icons come from the API, in two stages.** `/api/icons` returns all 1527 icons with only their regular weight — 733 KB instead of 4.2 MB — so the grid paints without waiting for bytes it cannot show. `/api/icons/all` follows in the background and replaces it; until then the weight selector and the detail dialog stay on regular, with the tabs disabled rather than showing regular under five other labels.
+**Icons come from the API, in two stages.** `/api/icons` returns all 1590 icons with only their regular weight — 751 KB instead of 4.2 MB — so the grid paints without waiting for bytes it cannot show. `/api/icons/all` follows in the background and replaces it; until then the weight selector and the detail dialog stay on regular, with the tabs disabled rather than showing regular under five other labels.
 
-The catalogue is seeded from the built `docs/icons.json`, so git stays the source of truth for artwork and the API is the serving copy.
+The catalogue is seeded from the built `docs/icons.json`, so git stays the source of truth for artwork and the API is the serving copy. That file is generated by the build, not committed, so `vercel.json` lists it under `functions.includeFiles` — a path read with `readFileSync` is not one the bundler can trace, and without the entry the deployed function serves an empty catalogue.
 
-**Approving adds the icon to that catalogue immediately**, so it appears in the gallery on the next load rather than at the next build, marked with a green `NEW` badge. Renaming a contributor updates the catalogue too, and deleting removes it — but only when the deleted submission is what put it there, so a built icon sharing a name is never touched. Responses carry the credit a contributor asked to have shown and nothing else about them.
+**A contribution cannot take a built icon's name.** `build:icons` reads `raw-svgs/<name>/<name>.centerline.svg` in preference to the six weight files beside it, so approving a `heart` would replace the shipped `heart` at the next build. [server/routes/submissions.js](server/routes/submissions.js) refuses the name at submission time, where the contributor can still change it, and [publish.js](server/lib/publish.js) refuses to write into or delete from a directory holding built artwork.
+
+**Approving adds the icon to that catalogue immediately**, so it appears in the gallery on the next load rather than at the next build, marked with a green `NEW` badge. Renaming a contributor updates the catalogue too, and deleting removes it — but only when the deleted submission is what put it there, so a built icon sharing a name is never touched. Deleting takes the published source file with it only where an approval published one; a pending or rejected submission has no file, and its name is not reason enough to delete one. Responses carry the credit a contributor asked to have shown and nothing else about them.
 
 An approved icon is in the gallery but **not yet in the npm package**, so its detail panel hides *Copy JSX* and *Copy import* and shows the SVG instead. Offering `import { BankVault } from "@shashi-hans/icons"` would hand out a line that does not resolve. A built-in of the same name always wins, so a contributed icon can never shadow a published one.
 
@@ -146,30 +156,31 @@ The relay rebuilds the outgoing request from `messages` alone, pinning the model
 
 ### Storage
 
-[server/lib/store.js](server/lib/store.js) is the only module that knows how data is persisted. `STORE_DRIVER` picks one of two:
+[server/lib/store.js](server/lib/store.js) is the only module that knows how data is persisted, and there is **one driver: Supabase**, Postgres over PostgREST in [store-supabase.js](server/lib/store-supabase.js). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are required. Without them the static gallery still serves and every request that needs data fails. `STORE_DRIVER` is vestigial: leave it unset, or set it to `supabase`. Any other value is refused, so an old deployment fails loudly instead of quietly reading a database it did not ask for.
 
-| Driver | Persists | Notes |
-| --- | --- | --- |
-| `memory` (default) | no | per-instance, lost on recycle; both pages warn about it in a banner |
-| `supabase` | yes | Postgres over PostgREST — [store-supabase.js](server/lib/store-supabase.js) |
+An in-memory driver used to stand in when those variables were absent, so a fresh checkout ran with no configuration. It was removed: on serverless it was per-instance and lost on recycle, which made the flows it let you demo not the flows that would run, and both pages carried a banner apologising for it. Needing a database beats pretending to have one. The cost is worth stating plainly: **a clone of this repo can no longer exercise contribution, review, or history without Supabase credentials.**
 
-A third driver is fourteen methods against your own client, returned from the factory in `store.js`; nothing else changes.
+A second driver is eighteen methods against your own client, returned from the factory in `store.js`; nothing else changes. Two of them have contracts worth reading before you implement them: `countSubmissions` returns exact totals per status and must not be derived from a page of `listSubmissions`, and `removeIcon` returns whether the name is no longer served, not whether this call is what removed it.
 
-Submissions and guest history are personal data under the DPDP Act 2023, so the database belongs in ap-south-1, and a retention window is still to be decided — the cleanup query is written out at the end of the migration.
+Submissions, guest history, and the visitor table are personal data under the DPDP Act 2023 — all three key on the guest id — so the database belongs in ap-south-1. **The retention window is still undecided**, and until it is, guest ids are kept indefinitely. [0002](supabase/migrations/0002_visit_counter_and_retention.sql) adds `prune_personal_data(days)`, which clears all three tables and keeps pending submissions (an unreviewed one is still doing its job). Pick a window, then schedule it:
+
+```sql
+select cron.schedule('prune-personal-data', '0 3 * * *', $$select prune_personal_data(180)$$);
+```
 
 #### Setting up Supabase
 
 1. Create the project in **South Asia (Mumbai) / ap-south-1**. Residency is the constraint, not latency.
-2. Run [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql) in the SQL editor (or `supabase db push`). It creates `submissions`, `history`, `visit_guests`, `site_counters`, the `record_visit` function, and the 50-per-guest history trim, then turns RLS on and revokes the anon role's access.
-3. Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `STORE_DRIVER=supabase` — locally in `.env.local`, on Vercel as Environment Variables.
+2. Run the migrations in order in the SQL editor (or `supabase db push`). [0001](supabase/migrations/0001_init.sql) creates `submissions`, `history`, `visit_guests`, `site_counters`, the `record_visit` function, and the 50-per-guest history trim, then turns RLS on and revokes the anon role's access. [0002](supabase/migrations/0002_visit_counter_and_retention.sql) moves the visitor number to a counter row and adds `prune_personal_data(days)`; it backfills from whatever `visit_guests` already holds, so an existing deployment keeps its number.
+3. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — locally in `.env.local`, on Vercel as Environment Variables. No `STORE_DRIVER` needed.
 
 The driver uses the **service_role** key, which bypasses RLS. That is deliberate: the browser never talks to PostgREST, so authorization stays in this API, where it already lives — the queue behind an admin session and history scoped to the caller's own guest cookie. The key is a database password in effect; it must never reach a page or a log. RLS with no policies plus the revoked grants means a leaked anon key (a public value by design) reads nothing.
 
 No package is added for any of this — PostgREST is called with `fetch`. A Postgres client would also have to be a runtime dependency of a published icon library, and would hold connections a serverless function cannot afford.
 
-**The icon catalogue is not in Postgres.** Built icons come from `docs/icons.json`, generated from `raw-svgs/`, so git stays the source of truth for artwork; a contributed icon is derived from its approved submission row on read. There is no second copy of a drawing to drift, and `upsertIcon`/`removeIcon` have nothing to write — they only apply the rule that a built icon of the same name wins. One behaviour differs from the memory driver as a result: moving an approved icon back to `pending` removes it from the gallery, where the memory driver leaves it showing.
+**The icon catalogue is not in Postgres.** Built icons come from `docs/icons.json`, generated from `raw-svgs/`, so git stays the source of truth for artwork; a contributed icon is derived from its approved submission row on read. There is no second copy of a drawing to drift, and `upsertIcon`/`removeIcon` have nothing to write — they only apply the rule that a built icon of the same name wins. Because the catalogue is derived rather than stored, moving an approved icon back to `pending` takes it out of the gallery immediately.
 
-Free-tier notes worth knowing: no backups, and the project pauses after 7 days of inactivity — a paused database makes every API call fail, and the gallery grid keeps working only because it is served from `docs/icons.json`.
+Free-tier notes worth knowing: no backups, and the project pauses after 7 days of inactivity. A paused database fails every API call including `/api/icons`, so the grid goes down with it — `docs/icons.json` is read by the function, not served to the page, and is no fallback.
 
 ### Running it locally
 
@@ -189,10 +200,10 @@ Required environment variables are documented in [.env.example](.env.example). `
 
 Components are generated from `raw-svgs/`. There are two source formats.
 
-**Drawn icons** — one folder per icon with all six weights, each on a `0 0 256 256` viewBox:
+**Drawn icons** — one folder per icon with its weight files, each on a `0 0 256 256` viewBox:
 
 ```
-raw-svgs/my-icon/my-icon-{thin,light,regular,bold,fill,duotone}.svg
+raw-svgs/my-icon/my-icon-{thin,light,regular,bold,fill,duotone}.svg   # the six files on disk
 ```
 
 **Generated icons** — one folder holding a single centerline file with 1–4 `<path d="…">` elements, geometry only, no paint attributes:
@@ -201,9 +212,9 @@ raw-svgs/my-icon/my-icon-{thin,light,regular,bold,fill,duotone}.svg
 raw-svgs/my-icon/my-icon.centerline.svg
 ```
 
-All six weights are derived from those paths at render time by [`StrokeIcon`](src/StrokeIcon.tsx): four stroke widths, a fill, and a duotone. Put each disconnected line in its own path (a clock is a ring path plus a hands path). The coordinates must sit on the 256 grid with no wrapping `transform` — a residual scale would make one icon's `bold` thicker than another's, so the build rejects it.
+All four weights are derived from those paths at render time by [`StrokeIcon`](src/StrokeIcon.tsx): two stroke widths, a fill, and a duotone. Put each disconnected line in its own path (a clock is a ring path plus a hands path). The coordinates must sit on the 256 grid with no wrapping `transform` — a residual scale would make one icon's `bold` thicker than another's, so the build rejects it.
 
-Then `npm run build:all` (= `build:icons` → `build`). `my-icon` becomes the `MyIcon` component, exported automatically. Preview locally with `npx serve docs`.
+Then `npm run build:all` (= `build:icons` → `build`). `my-icon` becomes the `MyIcon` component, exported automatically. Preview with `npm run dev` — a static file server is not enough, because the gallery reads its icons from `/api/icons`.
 
 | Script | Does |
 | --- | --- |
@@ -216,9 +227,9 @@ Then `npm run build:all` (= `build:icons` → `build`). `my-icon` becomes the `M
 
 ## Design notes
 
-One component embeds all six weights and `switch`es at render (so a render allocates one element, not six); the `<svg>` wrapper lives once in `IconBase`; duotone reuses the regular path when identical. `sideEffects: false` + pure annotations keep it tree-shakeable — importing one icon ships one icon.
+One component embeds all four weights and `switch`es at render (so a render allocates one element, not six); the `<svg>` wrapper lives once in `IconBase`; duotone reuses the regular path when identical. `sideEffects: false` + pure annotations keep it tree-shakeable — importing one icon ships one icon.
 
-Generated icons take a different route: they store one drawing and derive the six weights from it, so a component holds a path array instead of six path sets. That keeps the weights coherent (they come from the same geometry) and the component small.
+Generated icons take a different route: they store one drawing and derive the four weights from it, so a component holds a path array instead of six path sets. That keeps the weights coherent (they come from the same geometry) and the component small.
 
 ## Publishing
 
@@ -229,6 +240,8 @@ npm version patch && git push --follow-tags
 ```
 
 Or manually: `npm run build:all && npm publish --access public`.
+
+The workflow re-imports Phosphor from a fresh clone on every release, which is where a name can collide: Phosphor keeps growing, and it may ship a name a contributed icon already holds. **The contributed icon keeps the name** — it is already an export of a published package, so moving it would change what `import { Cup }` draws for everyone who has that line. The Phosphor arrival is imported as `cup-phosphor` instead, a new export that breaks nothing, and `import-phosphor.js` prints every rename it made. Sharing one directory is not an option: `generate-components.js` reads a centerline file in preference to the weight files beside it, so the Phosphor drawing would be imported and then silently ignored — which it now warns about, wherever such a pair comes from.
 
 ## License
 

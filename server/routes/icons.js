@@ -9,7 +9,7 @@
 // Public: these are the icons the site exists to hand out. The response carries
 // no submission detail beyond the credit a contributor asked to have shown.
 import { handler, json, methodIs } from "../lib/http.js";
-import { getStore, isEphemeral } from "../lib/store.js";
+import { getStore } from "../lib/store.js";
 import { WEIGHTS } from "../lib/icons.js";
 
 export const list = handler(async (req, res) => {
@@ -21,7 +21,6 @@ export const list = handler(async (req, res) => {
     total: icons.length,
     // "regular" tells the client this payload is not the full set yet.
     detail: "regular",
-    ephemeralStore: isEphemeral(),
   });
 });
 

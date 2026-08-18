@@ -1,20 +1,24 @@
 import type * as React from "react";
 
-// The six Phosphor weights, ordered light-to-heavy with fill/duotone last.
+// The four weights, lightest first with fill/duotone last.
 export type IconWeight =
   | "thin"
-  | "light"
   | "regular"
-  | "bold"
   | "fill"
-  | "duotone";
+  | "duotone"
+  /** @deprecated Removed as a weight; renders `thin`. */
+  | "light"
+  /** @deprecated Removed as a weight; renders `regular`. */
+  | "bold"
+  /** @deprecated Removed as a weight; renders `regular`. */
+  | "sharp";
 
-// The full list of weights, exported for runtime use (e.g. building pickers).
+// The weights the library offers, for runtime use (e.g. building pickers). The
+// deprecated three are absent deliberately: they still render, but nothing new
+// should pick them from a list.
 export const ICON_WEIGHTS: readonly IconWeight[] = [
   "thin",
-  "light",
   "regular",
-  "bold",
   "fill",
   "duotone",
 ] as const;

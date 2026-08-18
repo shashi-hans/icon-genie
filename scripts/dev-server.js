@@ -101,14 +101,14 @@ const server = createServer(async (req, res) => {
       ? "admin login: enabled (ADMIN_PASSWORD found)"
       : "admin login: DISABLED — set ADMIN_PASSWORD in .env (not .env.example)"
   );
-  // Read from the environment rather than by building the store: a bad driver
-  // name should fail on the first request that needs data, not stop the static
-  // gallery from being served at all.
-  const driver = process.env.STORE_DRIVER || "memory";
+  // Read from the environment rather than by building the store: missing
+  // credentials should fail on the first request that needs data, not stop the
+  // static gallery from being served at all.
   console.log(
-    driver === "memory"
-      ? "store: memory — submissions, history, and visit counts are lost on restart"
-      : `store: ${driver}`
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? "store: supabase"
+      : "store: NOT CONFIGURED — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY; " +
+          "the gallery will serve but every data request will fail"
   );
   if (!existsSync(join(DOCS_DIR, "icons.json"))) {
     console.log("warning: docs/icons.json missing — run `npm run build:icons` first");

@@ -100,6 +100,9 @@ create table if not exists site_counters (
 --
 -- `p_count` false reads the totals without recording, which is what the admin
 -- page does so that reviewing icons never inflates the number.
+--
+-- Superseded by 0002: the visitor number moved from a count over visit_guests to
+-- a counter row, so a page load no longer scans that table.
 create or replace function record_visit(p_guest_id text, p_count boolean)
 returns json
 language plpgsql
@@ -144,16 +147,7 @@ revoke all on submissions, history, visit_guests, site_counters from anon, authe
 revoke all on function record_visit(text, boolean) from anon, authenticated;
 revoke all on function trim_history() from anon, authenticated;
 
--- --- Retention (decide, then schedule) ---------------------------------------
--- DPDP expects personal data to be kept only as long as it serves the purpose it
--- was collected for. Reviewed submissions and old history stop serving one; pick
--- a window and run this on a schedule (pg_cron, or the app):
---
---   delete from history where created_at < now() - interval '180 days';
---   delete from submissions
---    where status in ('approved', 'rejected')
---      and reviewed_at < now() - interval '180 days';
---
--- Deleting an approved submission also removes the icon from the gallery, since
--- the catalogue is derived from these rows — publish the icon into raw-svgs/ and
--- rebuild before any such window expires.
+-- --- Retention ----------------------------------------------------------------
+-- Handled by 0002, which adds prune_personal_data(days) covering all three
+-- tables that hold personal data. Choosing the window and scheduling the call
+-- are still open decisions; the function picks neither for you.

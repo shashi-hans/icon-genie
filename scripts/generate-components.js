@@ -15,6 +15,7 @@ import {
   ICONS_OUT_DIR,
   MANIFEST_PATH,
   WEIGHTS,
+  SOURCE_WEIGHTS,
   toPascalCase,
   extractSvgInner,
   centerlinePaths,
@@ -57,9 +58,9 @@ function buildComponent(componentName, innerByWeight) {
     `    case "${weight}":\n      paths = (\n        <>${body}</>\n      );\n      break;`;
 
   const cases = [
-    caseFor("thin", innerByWeight.thin),
-    caseFor("light", innerByWeight.light),
-    caseFor("bold", innerByWeight.bold),
+    // "light" was removed as a weight and renders thin, so old calls keep
+    // working rather than falling through to regular and getting heavier.
+    `    case "light":\n${caseFor("thin", innerByWeight.thin)}`,
     caseFor("fill", innerByWeight.fill),
     duoReusesRegular
       ? `    case "duotone":\n      paths = (\n        <>${tint}{regular}</>\n      );\n      break;`
@@ -84,6 +85,9 @@ export function ${componentName}({
 ${regHoist}  let paths: React.ReactElement;
   switch (weight) {
 ${cases.join("\n")}
+    // "bold" and "sharp" were removed as weights; both render regular.
+    case "bold":
+    case "sharp":
     case "regular":
     default:
 ${defaultBody}
@@ -111,6 +115,8 @@ const iconDirs = fs
   .map((e) => e.name)
   .sort();
 
+const WEIGHT_FILE_RE = new RegExp(`-(${SOURCE_WEIGHTS.join("|")})\\.svg$`);
+
 const manifest = [];
 const seenComponents = new Map();
 let skipped = 0;
@@ -121,7 +127,7 @@ for (const iconName of iconDirs) {
   const componentName = toPascalCase(iconName);
   if (seenComponents.has(componentName)) {
     console.warn(
-      `  name collision: "${iconName}" and "${seenComponents.get(componentName)}" both map to ${componentName}; skipping the former.`
+      `  name collision: "${iconName}" and "${seenComponents.get(componentName)}" both map to ${componentName}; keeping "${seenComponents.get(componentName)}".`
     );
     skipped++;
     continue;
@@ -135,6 +141,16 @@ for (const iconName of iconDirs) {
     console.warn(`  ${iconName}: ${err.message}`);
   }
   if (centerline) {
+    // A centerline file wins outright, so any weight files beside it are dead
+    // weight nobody will see. import-phosphor.js renames incoming icons around
+    // this; anything else that put both here is worth naming rather than
+    // dropping in silence.
+    const ignored = fs.readdirSync(dir).filter((f) => WEIGHT_FILE_RE.test(f));
+    if (ignored.length) {
+      console.warn(
+        `  ${iconName}: ignoring ${ignored.length} weight files — the centerline file takes precedence. Rename one of the two.`
+      );
+    }
     seenComponents.set(componentName, iconName);
     fs.writeFileSync(
       path.join(ICONS_OUT_DIR, `${componentName}.tsx`),
@@ -147,7 +163,7 @@ for (const iconName of iconDirs) {
   const innerByWeight = {};
   let regularInner = null;
 
-  for (const weight of WEIGHTS) {
+  for (const weight of SOURCE_WEIGHTS) {
     const file = path.join(dir, `${iconName}-${weight}.svg`);
     if (!fs.existsSync(file)) continue;
     try {
@@ -165,8 +181,10 @@ for (const iconName of iconDirs) {
     continue;
   }
 
-  // Any weight that failed to load falls back to the regular markup so the
-  // component never renders an empty <svg>.
+  // Any weight with no file falls back to regular so the component never
+  // renders an empty <svg>. That is how drawn icons get their `sharp`: Phosphor
+  // ships no sharp artwork, and a filled outline cannot have its corners
+  // un-rounded after the fact. Only centerline icons derive a real one.
   for (const weight of WEIGHTS) {
     if (!innerByWeight[weight]) innerByWeight[weight] = regularInner;
   }

@@ -2,9 +2,48 @@ MIT License
 
 Copyright (c) 2026 Shashi Hans
 
-Icon artwork is derived from Phosphor Icons
-(https://github.com/phosphor-icons/core), Copyright (c) 2020 Phosphor Icons,
-also under the MIT License.
+Icon artwork is derived from several upstream sets, each redistributed under
+its own licence. The name prefix identifies the source.
+
+  (no prefix)  Phosphor Icons, Copyright (c) 2020 Phosphor Icons
+               https://github.com/phosphor-icons/core — MIT License
+
+  lu-          Lucide, Copyright (c) for portions of Lucide are held by
+               Cole Bemis 2013-2022 as part of Feather (MIT). All other
+               copyright (c) for Lucide are held by Lucide Contributors 2022.
+               https://github.com/lucide-icons/lucide — ISC License
+
+  fe-          Feather, Copyright (c) 2013-2023 Cole Bemis
+               https://github.com/feathericons/feather — MIT License
+
+  tb-          Tabler Icons, Copyright (c) 2020-2024 Paweł Kuna
+               https://github.com/tabler/tabler-icons — MIT License
+
+  hi-          Heroicons, Copyright (c) Tailwind Labs, Inc.
+               https://github.com/tailwindlabs/heroicons — MIT License
+
+  io-          Iconoir, Copyright (c) 2021 Luca Burgio
+               https://github.com/iconoir-icons/iconoir — MIT License
+
+  ms-          Material Symbols (outlined, weight 400),
+               Copyright (c) Google LLC
+               https://github.com/google/material-design-icons
+               Apache License, Version 2.0
+
+  ion-         Ionicons, Copyright (c) 2015-present Ionic
+               https://github.com/ionic-team/ionicons — MIT License
+               (the MIT terms are the ones reproduced below)
+
+Prefixed artwork is rescaled onto this library's 256-unit grid; the geometry is
+otherwise unmodified. The lu-, fe-, tb-, hi- and io- sets are stroked drawings
+and are stored as centerline path data, from which every weight is derived. The
+ms- and ion- sets are filled artwork with no lighter or heavier variant, so each
+ships one weight and every other weight renders that one. Full licence texts,
+including the Apache 2.0 text required for the ms- set, are in LICENSES/.
+
+The ion- artwork is extracted from the Ionicons TrueType font as shipped in
+@expo/vector-icons, which does not vendor Ionicons' own licence file; the
+attribution above is taken from the upstream project.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,4 +1,4 @@
-// GET /api/auth/me -> { role, title, guestId, loginConfigured, ephemeralStore, visits }
+// GET /api/auth/me -> { role, title, guestId, loginConfigured, visits }
 //
 // What the page calls on load to decide whether to show "Admin" or "Guest".
 // Visiting this route is also what mints a guest id, so history has something to
@@ -11,7 +11,7 @@
 // inflate the number.
 import { handler, json, methodIs } from "../lib/http.js";
 import { ensureGuestId, isAdmin } from "../lib/session.js";
-import { getStore, isEphemeral } from "../lib/store.js";
+import { getStore } from "../lib/store.js";
 
 export default handler(async (req, res) => {
   if (!methodIs(req, res, "GET")) return;
@@ -28,8 +28,6 @@ export default handler(async (req, res) => {
     guestId,
     // Lets the UI say "login isn't set up" instead of "wrong password".
     loginConfigured: Boolean(process.env.ADMIN_PASSWORD),
-    // Drives the banner warning that nothing is being persisted yet.
-    ephemeralStore: isEphemeral(),
     visits,
   });
 });

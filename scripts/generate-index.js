@@ -92,9 +92,15 @@ const icons = manifest.map((m) => {
     try {
       weights[weight] = extractSvgInner(fs.readFileSync(file, "utf8"));
     } catch {
-      // Missing weight -> empty; the page falls back to regular.
       weights[weight] = "";
     }
+  }
+  // A weight with no file resolves to regular here rather than being served as
+  // an empty string, so the payload matches what the components render. This is
+  // what gives a drawn icon its `sharp`: Phosphor ships no sharp artwork, and a
+  // filled outline cannot have its corners un-rounded after the fact.
+  for (const weight of WEIGHTS) {
+    if (!weights[weight]) weights[weight] = weights.regular;
   }
   return { name: m.name, component: m.component, weights };
 });

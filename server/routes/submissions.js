@@ -6,8 +6,9 @@
 // people submitted, so the GET is behind requireAdmin.
 import { handler, json, methodIs, readJson, requireAdmin } from "../lib/http.js";
 import { ensureGuestId } from "../lib/session.js";
-import { getStore, isEphemeral } from "../lib/store.js";
+import { getStore } from "../lib/store.js";
 import { cleanContributor, cleanSource, cleanText, dedupeKey, kebabName, validatePaths } from "../lib/validate.js";
+import { isBuiltIcon } from "../lib/icons.js";
 import { HttpError } from "../lib/http.js";
 
 const STATUSES = new Set(["pending", "approved", "rejected"]);
@@ -24,9 +25,10 @@ export default handler(async (req, res) => {
       throw new HttpError(400, `Unknown status "${status}".`);
     }
     const submissions = await store.listSubmissions({ status });
-    const counts = { pending: 0, approved: 0, rejected: 0 };
-    for (const row of await store.listSubmissions({})) counts[row.status] += 1;
-    return json(res, 200, { submissions, counts, ephemeralStore: isEphemeral() });
+    // Counted by the store rather than by walking a listing: listSubmissions is
+    // paged, so totals derived from it stop being totals past the first page.
+    const counts = await store.countSubmissions();
+    return json(res, 200, { submissions, counts });
   }
 
   // --- POST: anyone may contribute -----------------------------------------
@@ -34,6 +36,14 @@ export default handler(async (req, res) => {
   const paths = validatePaths(body);
   const name = kebabName(body.name);
   if (!name) throw new HttpError(400, "An icon name is required.");
+
+  // The build reads raw-svgs/<name>/<name>.centerline.svg in preference to the
+  // six weight files beside it, so approving a contribution under a built icon's
+  // name would replace the shipped drawing. Refused here, where the contributor
+  // can still rename it, rather than at approval where only an admin sees it.
+  if (isBuiltIcon(name)) {
+    throw new HttpError(409, `"${name}" is already an icon in the library. Choose another name.`);
+  }
 
   const summary = cleanText(body.summary);
 
@@ -75,5 +85,5 @@ export default handler(async (req, res) => {
   });
 
   // The submitter gets back their own row; listing anyone else's needs admin.
-  return json(res, 201, { submission, ephemeralStore: isEphemeral() });
+  return json(res, 201, { submission });
 });

@@ -16,7 +16,7 @@
 // API, which does its own authorization — the queue behind an admin session,
 // history scoped to the caller's own guest id.
 import { HttpError } from "./http.js";
-import { iconFromSubmission, readSeed, toSummary } from "./icons.js";
+import { iconFromSubmission, readSeed, seedMtime, toSummary } from "./icons.js";
 import "./env.js";
 
 const TIMEOUT_MS = 8000;
@@ -35,6 +35,16 @@ const UNIQUE_VIOLATION = "23505";
  */
 function eq(value) {
   return `eq.${encodeURIComponent(String(value))}`;
+}
+
+/**
+ * The row total PostgREST puts after the slash in content-range: "0-24/137",
+ * or "*\/0" for an empty result. Missing or unparseable reads as 0, so a queue
+ * summary degrades to a wrong number rather than to an error page.
+ */
+function contentRangeTotal(headers) {
+  const total = Number(headers.get("content-range")?.split("/")[1]);
+  return Number.isFinite(total) ? total : 0;
 }
 
 /** Postgres returns "+00:00"; the rest of the API speaks the "Z" form. */
@@ -118,7 +128,9 @@ export function createSupabaseStore() {
   }
   const rest = `${checkedBase(url)}/rest/v1`;
 
-  async function sb(method, path, { body, prefer } = {}) {
+  // `withHeaders` returns { data, headers } instead of the rows, which is how a
+  // count is read: PostgREST reports it in content-range, never in the body.
+  async function sb(method, path, { body, prefer, withHeaders = false } = {}) {
     const headers = {
       apikey: key,
       authorization: `Bearer ${key}`,
@@ -150,17 +162,26 @@ export function createSupabaseStore() {
       console.error(`supabase ${method} ${path} -> ${res.status}: ${detail}`);
       throw new PostgrestError(detail, res.status, data?.code);
     }
-    return data;
+    return withHeaders ? { data, headers: res.headers } : data;
   }
 
-  // Built icons, read once per process from docs/icons.json. Git is the source of
-  // truth for artwork, so the catalogue is never copied into Postgres: a
-  // contributed icon is derived from its approved submission row instead, which
-  // means there is no second copy of a drawing that can drift out of step.
+  // Built icons, read from docs/icons.json. Git is the source of truth for
+  // artwork, so the catalogue is never copied into Postgres: a contributed icon
+  // is derived from its approved submission row instead, which means there is no
+  // second copy of a drawing that can drift out of step.
+  //
+  // Rebuilt when docs/icons.json changes, so `npm run build:icons` shows up
+  // without a restart. The mtime check is a stat per catalogue read, which is
+  // nothing beside parsing the file itself.
   /** @type {Map<string, object>|null} */
   let seed = null;
+  let seedAt = -1;
   function seedMap() {
-    if (!seed) seed = new Map(readSeed().map((icon) => [icon.name, icon]));
+    const at = seedMtime();
+    if (!seed || at !== seedAt) {
+      seed = new Map(readSeed().map((icon) => [icon.name, icon]));
+      seedAt = at;
+    }
     return seed;
   }
 
@@ -185,9 +206,49 @@ export function createSupabaseStore() {
       );
   }
 
-  /** The merged catalogue: built icons, then contributions that do not shadow one. */
+  // Warned once per process rather than per request, which at one request per
+  // page load would otherwise fill the log.
+  let warnedNoHiddenTable = false;
+
+  /**
+   * Names an admin has taken out of the gallery.
+   *
+   * Tolerates the table not being there. It arrives in migration 0003, and the
+   * whole catalogue is built through here — without this guard a database that
+   * has not been migrated yet serves 500 for every icon request, taking the
+   * gallery down over a feature it is not using. Nothing is hidden until the
+   * migration is applied, and the log says so.
+   */
+  async function hiddenNames() {
+    try {
+      const rows = await sb("GET", "/hidden_icons?select=name");
+      return new Set((rows ?? []).map((row) => row.name));
+    } catch (err) {
+      // PGRST205: PostgREST cannot find the table in its schema cache.
+      if (err instanceof PostgrestError && err.code === "PGRST205") {
+        if (!warnedNoHiddenTable) {
+          warnedNoHiddenTable = true;
+          console.warn(
+            "supabase: no hidden_icons table — apply supabase/migrations/0003_hidden_icons.sql. " +
+              "Serving every icon; admin hide/restore will fail until then."
+          );
+        }
+        return new Set();
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * The merged catalogue: built icons, then contributions that do not shadow
+   * one, minus anything an admin has hidden. Hiding is applied last so it can
+   * reach a built icon, which nothing else in here can remove.
+   */
   async function catalogue() {
-    return [...seedMap().values(), ...(await contributedIcons())].sort(byName);
+    const [hidden, contributed] = await Promise.all([hiddenNames(), contributedIcons()]);
+    return [...seedMap().values(), ...contributed]
+      .filter((icon) => !hidden.has(icon.name))
+      .sort(byName);
   }
 
   return {
@@ -230,6 +291,28 @@ export function createSupabaseStore() {
       const filter = status ? `&status=${eq(status)}` : "";
       const rows = await sb("GET", `/submissions?select=*${filter}&order=created_at.desc&limit=${Number(limit)}`);
       return (rows ?? []).map(fromSubmissionRow);
+    },
+
+    /**
+     * Exact totals per status, one HEAD-shaped request each rather than a walk
+     * over the rows: a listing is paged, and a count taken from a page is not a
+     * total. `limit=0` asks for no rows at all; the number arrives in the header.
+     */
+    async countSubmissions() {
+      const statuses = ["pending", "approved", "rejected"];
+      const results = await Promise.all(
+        statuses.map((status) =>
+          sb("GET", `/submissions?select=id&status=${eq(status)}&limit=0`, {
+            prefer: "count=exact",
+            withHeaders: true,
+          })
+        )
+      );
+      const counts = {};
+      statuses.forEach((status, i) => {
+        counts[status] = contentRangeTotal(results[i].headers);
+      });
+      return counts;
     },
 
     async getSubmission(id) {
@@ -292,6 +375,37 @@ export function createSupabaseStore() {
 
     async listIconSummaries() {
       return (await catalogue()).map(toSummary);
+    },
+
+    /**
+     * Take a name out of the gallery, whatever kind of icon it is. Idempotent:
+     * hiding an already-hidden name is not an error, which matters when the
+     * caller is working through a long list.
+     */
+    async hideIcon(name, by) {
+      await sb("POST", "/hidden_icons?on_conflict=name", {
+        body: { name, hidden_by: by ?? null },
+        prefer: "resolution=merge-duplicates",
+      });
+      return true;
+    },
+
+    /** Put a hidden name back. True when it was hidden and now is not. */
+    async unhideIcon(name) {
+      const rows = await sb("DELETE", `/hidden_icons?name=${eq(name)}`, {
+        prefer: "return=representation",
+      });
+      return (rows ?? []).length > 0;
+    },
+
+    /** Hidden names, newest first, for review and for pruning raw-svgs/ later. */
+    async listHiddenIcons() {
+      const rows = await sb("GET", "/hidden_icons?select=name,hidden_at,hidden_by&order=hidden_at.desc");
+      return (rows ?? []).map((row) => ({
+        name: row.name,
+        hiddenAt: iso(row.hidden_at),
+        hiddenBy: row.hidden_by ?? null,
+      }));
     },
 
     /**

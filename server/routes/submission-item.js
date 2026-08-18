@@ -34,17 +34,33 @@ export default handler(async (req, res) => {
   }
 
   if (req.method === "DELETE") {
+    const existing = await store.getSubmission(id);
+    if (!existing) throw new HttpError(404, "No such submission.");
+
+    // Read the catalogue while the row is still there: the Supabase driver
+    // derives it from approved submissions, so after the delete there is nothing
+    // left to match against. Only pull the icon if this submission is what put
+    // it there — never remove a built icon that happens to share the name.
+    const current = (await store.listIcons()).find((i) => i.name === existing.name);
+
     const removed = await store.deleteSubmission(id);
     if (!removed) throw new HttpError(404, "No such submission.");
-    // The record is what puts the icon in the gallery, so it is gone already;
-    // this takes the published source file out too, when there is one.
-    // Only pull it from the catalogue if this submission is what put it there —
-    // never remove a built icon that happens to share the name.
-    const current = (await store.listIcons()).find((i) => i.name === removed.name);
     if (current?.contributed && current.submissionId === removed.id) {
       await store.removeIcon(removed.name);
     }
-    const unpublished = await unpublishIcon({ name: removed.name });
+
+    // The record is what puts the icon in the gallery, so it is gone already.
+    // A source file exists only where an approval published one, so anything
+    // else is left alone rather than being deleted on the strength of a name.
+    const unpublished =
+      existing.status === "approved"
+        ? await unpublishIcon({ name: removed.name })
+        : {
+            mode: "none",
+            filePath: null,
+            url: null,
+            detail: "It was never approved, so no source file was published.",
+          };
     return json(res, 200, { deleted: { id: removed.id, name: removed.name }, unpublished });
   }
 

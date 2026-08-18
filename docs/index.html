@@ -370,11 +370,6 @@
       }
       .who-item:hover { background: var(--panel); color: var(--accent); }
       .who-badge.admin { border-color: var(--accent); color: var(--accent); }
-      #store-warning {
-        display: none; margin: 0 auto 12px; max-width: 900px; padding: 8px 12px;
-        border: 1px solid #b0892b; border-radius: 8px; color: #e3b341; font-size: 12px;
-      }
-      #store-warning.show { display: block; }
       #load-note {
         max-width: 900px; margin: 0 auto; padding: 0 20px 4px;
         color: var(--muted); font-size: 12px;
@@ -480,11 +475,6 @@
       </div>
     </header>
 
-    <div id="store-warning">
-      The server is running without a database, so submissions and history are kept in
-      memory only and disappear when the instance recycles. Connect a store in
-      <code>server/lib/store.js</code> before relying on either.
-    </div>
     <div id="load-note" hidden></div>
     <main id="grid"><div class="empty">Loading icons…</div></main>
 
@@ -500,7 +490,7 @@
         <pre class="snippet"><code id="snippet-code"></code></pre>
         <div class="admin-actions" id="modal-admin" hidden>
           <span class="label">Admin</span>
-          <button class="btn" type="button" data-adminact="rename">Change contributor</button>
+          <button class="btn" type="button" id="modal-rename-btn" data-adminact="rename">Change contributor</button>
           <button class="btn danger" type="button" data-adminact="delete">Delete from gallery</button>
         </div>
         <div class="confirm" id="modal-rename" hidden>
@@ -672,6 +662,9 @@
         parsePastedIcon,
         toCenterlineSvg,
       } from "./icon-genie.js";
+      // Same derivation the library and the build use, so a generated preview
+      // matches what the React component renders.
+      import { deriveWeightInner } from "./stroke-weights.js";
 
       const grid = document.getElementById("grid");
       const search = document.getElementById("search");
@@ -980,6 +973,7 @@
       // Visibility here is presentation only — the API re-checks the admin
       // session on every call, so a guest forcing these buttons visible gets 403.
       const modalAdmin = document.getElementById("modal-admin");
+      const modalRenameBtn = document.getElementById("modal-rename-btn");
       const modalRename = document.getElementById("modal-rename");
       const modalRenameInput = document.getElementById("modal-rename-input");
       const modalDelete = document.getElementById("modal-delete");
@@ -991,16 +985,23 @@
         if (which === "rename") modalRenameInput.focus();
       }
 
+      // An admin can remove any icon, built ones included. Renaming a
+      // contributor only makes sense where there is a contributor.
       function refreshModalAdmin() {
-        const can = me.role === "admin" && modalIcon?.contributed && modalIcon?.submissionId;
-        modalAdmin.hidden = !can;
+        const admin = me.role === "admin" && Boolean(modalIcon);
+        const contributed = Boolean(modalIcon?.contributed && modalIcon?.submissionId);
+        modalAdmin.hidden = !admin;
+        modalRenameBtn.hidden = !contributed;
         showModalConfirm(null);
-        if (can) {
+        if (!admin) return;
+        if (contributed) {
           modalRenameInput.value = modalIcon.contributor === "Anonymous" ? "" : modalIcon.contributor;
-          modalDeleteText.textContent =
-            `Delete "${modalIcon.name}"? It leaves the gallery, its source file is removed, ` +
-            `and the contributor is not told.`;
         }
+        modalDeleteText.textContent = contributed
+          ? `Remove "${modalIcon.name}" from the gallery? The contributor is not told. ` +
+            `The artwork stays in the repo and this can be undone.`
+          : `Remove "${modalIcon.name}" from the gallery? It is a built icon, so the ` +
+            `artwork stays in raw-svgs/ and in git, and this can be undone.`;
       }
 
       async function adminRename() {
@@ -1019,10 +1020,13 @@
         }
       }
 
+      // Hides the icon rather than deleting artwork: one endpoint that works on
+      // built and contributed icons alike, and is reversible, which is what makes
+      // it usable for working through a long list of duplicates.
       async function adminDelete() {
         const icon = modalIcon;
         try {
-          await api(`/api/submissions/${encodeURIComponent(icon.submissionId)}`, { method: "DELETE" });
+          await api(`/api/icons/${encodeURIComponent(icon.name)}`, { method: "DELETE" });
           icons = icons.filter((i) => i !== icon);
           closeModal();
           applyFilter();
@@ -1115,8 +1119,7 @@
       // it, and must not be able to.
       const FREE_BASE = "/api/ai";
       const FREE_MODEL_LABEL = "The free model";
-      const GEN_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"];
-      const GEN_STROKE = { thin: 9, light: 13, regular: 18, bold: 27 };
+      const GEN_WEIGHTS = ["thin", "regular", "fill", "duotone"];
 
       const aiOpen = document.getElementById("ai-open");
       const genModal = document.getElementById("gen-modal");
@@ -1191,30 +1194,6 @@
           .join("");
         return /^[0-9]/.test(p) ? "Icon" + p : p || "Icon";
       }
-      function strokedPaths(paths, w) {
-        return paths
-          .map(
-            (d) =>
-              `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`
-          )
-          .join("");
-      }
-      function filledPaths(paths, opacity) {
-        const op = opacity == null ? "" : ` opacity="${opacity}"`;
-        return paths.map((d) => `<path d="${d}" fill="currentColor"${op}/>`).join("");
-      }
-      function deriveWeightInner(paths) {
-        const list = Array.isArray(paths) ? paths : [paths];
-        return {
-          thin: strokedPaths(list, GEN_STROKE.thin),
-          light: strokedPaths(list, GEN_STROKE.light),
-          regular: strokedPaths(list, GEN_STROKE.regular),
-          bold: strokedPaths(list, GEN_STROKE.bold),
-          fill: filledPaths(list),
-          duotone: filledPaths(list, 0.2) + strokedPaths(list, GEN_STROKE.regular),
-        };
-      }
-
       function selectSource(src) {
         genSource = src;
         for (const tab of genTabs) {
@@ -1265,7 +1244,6 @@
       const histModal = document.getElementById("hist-modal");
       const histList = document.getElementById("hist-list");
       const histStatus = document.getElementById("hist-status");
-      const storeWarning = document.getElementById("store-warning");
       let me = { role: "guest", title: "Guest" };
 
       async function api(path, opts = {}) {
@@ -1310,7 +1288,6 @@
           histOpen.hidden = true;
           loginOpen.hidden = true;
         }
-        storeWarning.classList.toggle("show", Boolean(me.ephemeralStore));
         renderWho();
         renderVisitors();
       }
@@ -1694,7 +1671,6 @@
           const summary = await api("/api/icons");
           icons = summary.icons || [];
           applyWeightOptions(summary.weights);
-          storeWarning.classList.toggle("show", Boolean(summary.ephemeralStore));
           applyFilter();
           setLoadingNote(`Showing regular weight — loading all ${weights.length} weights…`);
         } catch (err) {

@@ -1,10 +1,12 @@
 // Apparent line thickness (in 256-grid units) for each stroke-derived weight.
-// AI-generated icons are a single centerline path rendered at these widths, so
-// one drawing yields all six Phosphor weights (fill/duotone handled separately).
-// Keep in sync with scripts/derive-weights.js (the docs/build-time copy).
-export const STROKE_WIDTHS: Record<"thin" | "light" | "regular" | "bold", number> = {
+// A centerline icon is one drawing rendered at these widths; fill and duotone are
+// handled separately in StrokeIcon.
+// Three copies of these widths exist, one per runtime, and they must agree:
+// this file (the published React library), scripts/derive-weights.js (the build
+// and the API), and docs/stroke-weights.js (the two gallery pages). This one
+// cannot import from the others: the package ships it, and a published module
+// must not reach into the repo's build scripts.
+export const STROKE_WIDTHS: Record<"thin" | "regular", number> = {
   thin: 9,
-  light: 13,
   regular: 18,
-  bold: 27,
 };
