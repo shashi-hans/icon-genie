@@ -30,6 +30,53 @@ All icons forward any valid `<svg>` attribute, plus:
 
 **Removed weights still work.** `light`, `bold` and `sharp` are no longer weights the library offers and are absent from `ICON_WEIGHTS`, but they still type-check and still render — `light` as `thin`, `bold` and `sharp` as `regular` — so existing calls do not break. The six `-{thin,light,regular,bold,fill,duotone}.svg` files on disk are untouched: `scripts/utils.js` separates what exists as artwork (`SOURCE_WEIGHTS`) from what the library offers (`WEIGHTS`).
 
+## Using an icon without React
+
+The React import is the main path, but it needs a bundler and React 18. Two
+other ways exist for everything else.
+
+**By name, at runtime.** A name that comes from data cannot be an import, so
+`<Icon>` looks it up in a registry you fill:
+
+```tsx
+import { Icon, registerIcons, Heart, Star } from "@shashi-hans/icons";
+
+registerIcons({ Heart, Star });
+<Icon name="heart" weight="fill" />   // "heart", "Heart" and "heart" all match
+```
+
+The registry is not pre-filled with all 8,468 components on purpose. A built-in
+table would be a static reference to every icon in the package, so a bundler
+could drop none of them and importing one icon would ship all of them. An
+unregistered name renders `fallback`, or nothing — a bad row in a CMS should not
+take the page down.
+
+**In plain HTML, no build step.** `<sh-icon>` is a web component that fetches the
+drawing over HTTP, so a page needs neither React nor the package:
+
+```html
+<script type="module" src="https://<host>/sh-icon.js"></script>
+
+<sh-icon name="heart"></sh-icon>
+<sh-icon name="heart" weight="fill" size="32" color="crimson"></sh-icon>
+<sh-icon name="logo-apple" size="32" label="Apple"></sh-icon>
+```
+
+It sizes itself like a glyph (`1em`, baseline-aligned) and renders inline rather
+than through `<img>`, so `currentColor` follows the surrounding text. Requests
+are shared per name and weight across the page. `setBase()` points it at another
+host. This is the mode to use when the name is genuinely unknown until runtime:
+nothing bundled can help there, because the bundler cannot know what to keep.
+
+**As a file.** `GET /api/svg/heart.svg` returns one icon, with `?weight=`,
+`?size=` and `?color=`; `heart-fill.svg` works too, and a name that really ends
+in a weight word wins over that reading. It is CORS-open and cached for a year,
+so it works in `<img>`, `<object>`, and CSS.
+
+The SVGs are served, not shipped. One file per icon per weight is 33,872 files
+and 25 MB, which has no place in a package tarball; fetching one costs a few
+hundred bytes.
+
 ## Finding an icon
 
 - **Gallery** (searchable, click-to-copy): the Vercel deployment, or `npm run dev` for a local one
@@ -86,6 +133,7 @@ api/[...path].js   the only file under api/ — Vercel finds functions there, so
 | `/api/submissions/:id` | DELETE | admin | remove it and its published source file |
 | `/api/icons` | GET | anyone | one page of icons at every weight; `q`, `offset`, `limit` |
 | `/api/icons/all` | GET | anyone | the same, kept for callers already on that path |
+| `/api/svg/:name.svg` | GET | anyone | one icon as a standalone SVG; `weight`, `size`, `color` |
 
 **Visitors are guests by default.** No account is needed to browse, generate, or contribute — the header shows `Guest`, and a signed `sh_guest` cookie keys their history. That cookie is an identifier, not a credential: it grants nothing but read access to the history filed under it, so forging one gains an attacker nothing.
 

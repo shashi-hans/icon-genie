@@ -34,6 +34,12 @@ const PATTERNS = [
     params: ["name"],
     load: () => import("./routes/icon-item.js"),
   },
+  {
+    re: /^\/svg\/([^/]+)$/,
+    methods: ["GET"],
+    params: ["file"],
+    load: () => import("./routes/svg.js"),
+  },
 ];
 
 /**
