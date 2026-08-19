@@ -32,7 +32,7 @@ export interface IconProps
   size?: number | string;
   // Any CSS color value. Drives the SVG `fill`, so it cascades to every path.
   color?: string;
-  // Which Phosphor weight to render. Defaults to "regular".
+  // Which weight to render. Defaults to "regular".
   weight?: IconWeight;
   className?: string;
   style?: React.CSSProperties;

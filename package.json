@@ -1,7 +1,7 @@
 {
   "name": "@shashi-hans/icons",
-  "version": "0.1.0",
-  "description": "A tree-shakeable React icon library built from Phosphor Icons, with a weight prop (regular, bold, fill, duotone, light, thin).",
+  "version": "0.2.0",
+  "description": "A tree-shakeable React icon library of 8469 icons, with a weight prop (thin, regular, fill, duotone). Artwork from Phosphor, Lucide, Feather, Tabler, Heroicons, Iconoir, Material Symbols and Ionicons.",
   "license": "MIT",
   "author": "Shashi Hans",
   "repository": {
@@ -17,6 +17,10 @@
     "icons",
     "svg",
     "phosphor",
+    "lucide",
+    "tabler",
+    "heroicons",
+    "material-symbols",
     "icon-library",
     "typescript",
     "tree-shakeable"
@@ -36,7 +40,9 @@
   },
   "files": [
     "dist",
-    "!dist/**/*.map"
+    "!dist/**/*.map",
+    "LICENSES",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "import:phosphor": "node scripts/import-phosphor.js",

@@ -299,4 +299,4 @@ The workflow re-imports Phosphor from a fresh clone on every release, which is w
 
 ## License
 
-MIT © Shashi Hans. Icon artwork is derived from [Phosphor Icons](https://github.com/phosphor-icons/core) (MIT © 2020 Phosphor Icons); see [`LICENSE`](LICENSE).
+MIT © Shashi Hans. Icon artwork is derived from Phosphor, Lucide, Feather, Tabler, Heroicons, Iconoir, Material Symbols and Ionicons — MIT except Lucide (ISC) and Material Symbols (Apache 2.0). Per-set copyright notices are in [`LICENSE`](LICENSE) and the full texts in [`LICENSES/`](LICENSES); both ship in the npm tarball. The `logo-*` icons are brand logos: the artwork is MIT, the trademarks are not, so use them in a way that does not imply endorsement.
