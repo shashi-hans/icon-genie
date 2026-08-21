@@ -6,7 +6,7 @@
 // --env-file. Importing this makes `node api/...` behave like the other two.
 //
 // Deliberately dependency-free rather than using dotenv: this repo publishes
-// `@shashi-hans/icons`, and a runtime dependency here would be installed by
+// `icon-genie`, and a runtime dependency here would be installed by
 // everyone who installs the icon library.
 //
 // Real values live in .env / .env.local, which are gitignored. .env.example is

@@ -1,17 +1,17 @@
-# @shashi-hans/icons
+# icon-genie
 
 A tree-shakeable React icon library. Each icon is one component with a `weight` prop — `thin`, `regular`, `fill`, or `duotone`. TypeScript-first, `currentColor` by default, ESM + CJS, `react` as the only peer.
 
 ## Install
 
 ```bash
-npm install @shashi-hans/icons   # requires react >= 18
+npm install icon-genie   # requires react >= 18
 ```
 
 ## Usage
 
 ```tsx
-import { Heart, User } from "@shashi-hans/icons";
+import { Heart, User } from "icon-genie";
 
 <Heart weight="fill" color="crimson" size={32} />
 <User weight="duotone" aria-label="Profile" />   // labelled = role="img"; otherwise aria-hidden
@@ -39,7 +39,7 @@ other ways exist for everything else.
 `<Icon>` looks it up in a registry you fill:
 
 ```tsx
-import { Icon, registerIcons, Heart, Star } from "@shashi-hans/icons";
+import { Icon, registerIcons, Heart, Star } from "icon-genie";
 
 registerIcons({ Heart, Star });
 <Icon name="heart" weight="fill" />   // "heart", "Heart" and "heart" all match
@@ -51,15 +51,15 @@ could drop none of them and importing one icon would ship all of them. An
 unregistered name renders `fallback`, or nothing — a bad row in a CMS should not
 take the page down.
 
-**In plain HTML, no build step.** `<sh-icon>` is a web component that fetches the
-drawing over HTTP, so a page needs neither React nor the package:
+**In plain HTML, no build step.** `<icon-genie>` is a web component that fetches
+the drawing over HTTP, so a page needs neither React nor the package:
 
 ```html
-<script type="module" src="https://<host>/sh-icon.js"></script>
+<script type="module" src="https://<host>/icon-genie.js"></script>
 
-<sh-icon name="heart"></sh-icon>
-<sh-icon name="heart" weight="fill" size="32" color="crimson"></sh-icon>
-<sh-icon name="logo-apple" size="32" label="Apple"></sh-icon>
+<icon-genie name="heart"></icon-genie>
+<icon-genie name="heart" weight="fill" size="32" color="crimson"></icon-genie>
+<icon-genie name="logo-apple" size="32" label="Apple"></icon-genie>
 ```
 
 It sizes itself like a glyph (`1em`, baseline-aligned) and renders inline rather
@@ -80,12 +80,12 @@ hundred bytes.
 ## Finding an icon
 
 - **Gallery** (searchable, click-to-copy): the Vercel deployment, or `npm run dev` for a local one
-- **Editor autocomplete** on `import { } from "@shashi-hans/icons"`
+- **Editor autocomplete** on `import { } from "icon-genie"`
 - **At runtime:** `generateMetadata().iconNames`
 
 ## Generating an icon that does not exist yet
 
-The gallery has a **✨ Generate** button ([`sh-icon-genie`](https://github.com/shashi-hans/icon-genie)). Describe an icon, get 1–4 centerline paths back, preview all four weights, then download it or open a pull request adding it to this library. Three sources:
+The gallery has a **✨ Generate** button ([`sh-icon-genie`](https://www.npmjs.com/package/sh-icon-genie)). Describe an icon, get 1–4 centerline paths back, preview all four weights, then download it or open a pull request adding it to this library. Three sources:
 
 | Source | What it uses | Steps | Cost |
 | --- | --- | --- | --- |
@@ -182,7 +182,7 @@ The catalogue is seeded from the built `docs/icons.json`, so git stays the sourc
 
 **Approving adds the icon to that catalogue immediately**, so it appears in the gallery on the next load rather than at the next build, marked with a green `NEW` badge. Renaming a contributor updates the catalogue too, and deleting removes it — but only when the deleted submission is what put it there, so a built icon sharing a name is never touched. Deleting takes the published source file with it only where an approval published one; a pending or rejected submission has no file, and its name is not reason enough to delete one. Responses carry the credit a contributor asked to have shown and nothing else about them.
 
-An approved icon is in the gallery but **not yet in the npm package**, so its detail panel hides *Copy JSX* and *Copy import* and shows the SVG instead. Offering `import { BankVault } from "@shashi-hans/icons"` would hand out a line that does not resolve. A built-in of the same name always wins, so a contributed icon can never shadow a published one.
+An approved icon is in the gallery but **not yet in the npm package**, so its detail panel hides *Copy JSX* and *Copy import* and shows the SVG instead. Offering `import { BankVault } from "icon-genie"` would hand out a line that does not resolve. A built-in of the same name always wins, so a contributed icon can never shadow a published one.
 
 **Approving also publishes it to the package.** The icon's centerline file is written to `raw-svgs/<name>/<name>.centerline.svg` — the path `build:icons` reads — so `PolicyDoc` becomes a real export on the next build. What "written" means depends on where the API runs ([server/lib/publish.js](server/lib/publish.js)):
 

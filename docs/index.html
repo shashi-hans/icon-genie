@@ -666,15 +666,15 @@
 
     <script type="module">
       // The safety gate and prompt come from sh-icon-genie, bundled to
-      // docs/icon-genie.js by scripts/build-gallery.js. Every generation source
-      // below returns raw model output, so this page is the only thing standing
-      // between a model's drawing and the DOM.
+      // docs/genie-bundle.js by scripts/build-gallery.js. Every generation
+      // source below returns raw model output, so this page is the only thing
+      // standing between a model's drawing and the DOM.
       import {
         buildChatPrompt,
         generateWithKey,
         parsePastedIcon,
         toCenterlineSvg,
-      } from "./icon-genie.js";
+      } from "./genie-bundle.js";
       // Same derivation the library and the build use, so a generated preview
       // matches what the React component renders.
       import { deriveWeightInner } from "./stroke-weights.js";
@@ -788,7 +788,7 @@
       }
 
       function buildImport(icon) {
-        return `import { ${icon.component} } from "@shashi-hans/icons";`;
+        return `import { ${icon.component} } from "icon-genie";`;
       }
 
       // Standalone SVG markup. `forRaster` resolves currentColor to a concrete

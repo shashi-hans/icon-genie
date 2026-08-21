@@ -6,7 +6,7 @@
 // The rules are deliberately duplicated rather than imported from
 // sh-icon-genie. That package is a devDependency used to build the gallery
 // bundle; making it a runtime dependency would add it to the published
-// `@shashi-hans/icons` dependency tree, so every consumer of the icon library
+// `icon-genie` dependency tree, so every consumer of the icon library
 // would install an icon generator. Keep these constants in step with
 // MAX_PATHS in sh-icon-genie and MAX_CENTERLINE_PATHS in scripts/utils.js.
 import { HttpError } from "./http.js";

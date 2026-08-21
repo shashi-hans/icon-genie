@@ -2,7 +2,7 @@
 // store.js, backed by Postgres. Selected with STORE_DRIVER=supabase.
 //
 // It speaks PostgREST over plain fetch rather than using @supabase/supabase-js or
-// a Postgres client, for two reasons. This repo publishes `@shashi-hans/icons`
+// a Postgres client, for two reasons. This repo publishes `icon-genie`
 // and has no runtime dependencies at all, so a package added here would be
 // installed by everyone who installs the icon library. And a serverless function
 // holding a direct Postgres connection exhausts the connection limit under any

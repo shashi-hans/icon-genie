@@ -1,7 +1,7 @@
 // GET /api/svg/<name>.svg[?weight=]   one icon, as a standalone SVG file
 //
 // This is the plain-HTML path: <img src=".../api/svg/heart.svg">, a CSS
-// background, an <object>, or the <sh-icon> web component. None of it needs
+// background, an <object>, or the <icon-genie> web component. None of it needs
 // React, a bundler, or the npm package.
 //
 // The files are served rather than shipped. One SVG per icon per weight is

@@ -1,14 +1,14 @@
-// <sh-icon> — the plain-HTML way to use these icons, with no build step.
+// <icon-genie> — the plain-HTML way to use these icons, with no build step.
 //
-//   <script type="module" src="https://<host>/sh-icon.js"></script>
-//   <sh-icon name="heart"></sh-icon>
-//   <sh-icon name="heart" weight="fill" size="32" color="crimson"></sh-icon>
+//   <script type="module" src="https://<host>/icon-genie.js"></script>
+//   <icon-genie name="heart"></icon-genie>
+//   <icon-genie name="heart" weight="fill" size="32" color="crimson"></icon-genie>
 //
 // The markup is fetched from /api/svg on the host this script was loaded from,
 // so a page needs neither React nor the npm package. Override the origin with
 //
 //   <script type="module">
-//     import { setBase } from "https://<host>/sh-icon.js";
+//     import { setBase } from "https://<host>/icon-genie.js";
 //     setBase("https://icons.example.com");
 //   </script>
 //
@@ -40,7 +40,7 @@ function load(name, weight) {
   return pending;
 }
 
-class ShIcon extends HTMLElement {
+class IconGenie extends HTMLElement {
   static observedAttributes = ["name", "weight", "size", "color"];
 
   constructor() {
@@ -93,6 +93,6 @@ class ShIcon extends HTMLElement {
   }
 }
 
-if (!customElements.get("sh-icon")) customElements.define("sh-icon", ShIcon);
+if (!customElements.get("icon-genie")) customElements.define("icon-genie", IconGenie);
 
-export { ShIcon };
+export { IconGenie };

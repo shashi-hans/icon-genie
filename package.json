@@ -1,21 +1,22 @@
 {
-  "name": "@shashi-hans/icons",
+  "name": "icon-genie",
   "version": "0.2.0",
   "description": "A tree-shakeable React icon library of 8469 icons, with a weight prop (thin, regular, fill, duotone). Artwork from Phosphor, Lucide, Feather, Tabler, Heroicons, Iconoir, Material Symbols and Ionicons.",
   "license": "MIT",
   "author": "Shashi Hans",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shashi-hans/shashihans-icons.git"
+    "url": "git+https://github.com/shashi-hans/icon-genie.git"
   },
-  "homepage": "https://github.com/shashi-hans/shashihans-icons#readme",
+  "homepage": "https://github.com/shashi-hans/icon-genie#readme",
   "bugs": {
-    "url": "https://github.com/shashi-hans/shashihans-icons/issues"
+    "url": "https://github.com/shashi-hans/icon-genie/issues"
   },
   "keywords": [
     "react",
     "icons",
     "svg",
+    "icon-genie",
     "phosphor",
     "lucide",
     "tabler",

@@ -9,13 +9,13 @@ import type { IconProps } from "./types";
 // icon would ship all of them. Registering is the one line that keeps the
 // tree-shaking this library is built around:
 //
-//   import { Icon, registerIcons, Heart, Star } from "@shashi-hans/icons";
+//   import { Icon, registerIcons, Heart, Star } from "icon-genie";
 //   registerIcons({ Heart, Star });
 //   <Icon name="heart" />        // or "Heart"
 //
 // For a name that is genuinely unknown until runtime — user input, a CMS field —
 // nothing bundled can help, because the bundler cannot know what to keep. Use
-// the <sh-icon> web component, which fetches the drawing over HTTP.
+// the <icon-genie> web component, which fetches the drawing over HTTP.
 
 /** The shape every generated icon component has. */
 export type IconComponent = (props: IconProps) => React.ReactElement;

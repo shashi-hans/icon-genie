@@ -92,7 +92,7 @@ async function gh(method, apiPath, body) {
     headers: {
       authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
       accept: "application/vnd.github+json",
-      "user-agent": "shashihans-icons-admin",
+      "user-agent": "icon-genie-admin",
       "content-type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -114,7 +114,7 @@ async function gh(method, apiPath, body) {
  * kebab-cased name, holding path data the server already validated.
  */
 async function publishToGitHub(name, paths, contributor) {
-  const repo = process.env.GH_REPO || "shashi-hans/shashihans-icons";
+  const repo = process.env.GH_REPO || "shashi-hans/icon-genie";
   const base = process.env.GH_BASE || "main";
   const rel = iconFilePath(name);
   const content = Buffer.from(toCenterlineSvg(paths), "utf8").toString("base64");
@@ -168,7 +168,7 @@ async function unpublishLocal(name) {
 
 /** Delete the icon's source file from the repo. Requires its current blob sha. */
 async function unpublishFromGitHub(name) {
-  const repo = process.env.GH_REPO || "shashi-hans/shashihans-icons";
+  const repo = process.env.GH_REPO || "shashi-hans/icon-genie";
   const base = process.env.GH_BASE || "main";
   const rel = iconFilePath(name);
   const current = await gh("GET", `/repos/${repo}/contents/${encodeURI(rel)}?ref=${encodeURIComponent(base)}`);
