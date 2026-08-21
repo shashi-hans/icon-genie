@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0
+
+Breaking. The package is renamed; the API is unchanged.
+
+**`@shashi-hans/icons` is now `icon-genie`.** Run
+`npm uninstall @shashi-hans/icons && npm install icon-genie`, then update the
+import specifier. Every export keeps its name and signature, so nothing else in
+your code changes. The old name is deprecated on npm and receives no further
+releases.
+
+**The web component is `<icon-genie>`, served from `/icon-genie.js`.**
+`<sh-icon>` and `/sh-icon.js` are gone. Update the `<script src>` and the tags:
+attributes (`name`, `weight`, `size`, `color`, `label`) and `setBase()` are
+unchanged. This affects plain-HTML pages only, not the React or `/api/svg` paths.
+
+The repository moved to `github.com/shashi-hans/icon-genie`.
+
 ## 0.2.0
 
 Breaking. Two changes affect existing imports.
