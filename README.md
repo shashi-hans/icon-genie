@@ -112,11 +112,13 @@ server/
   router.js        the routing table, shared by both entry points
   lib/             store, sessions, validation, publishing, icon catalogue
   routes/          one module per endpoint
-api/[...path].js   the only file under api/ — Vercel finds functions there, so
-                   this catch-all hands off to server/router.js
+api/index.js       the only file under api/ — Vercel finds functions there, so
+                   this one hands off to server/router.js
 ```
 
 `scripts/dev-server.js` uses the same `server/router.js`, so local and deployed routing cannot drift apart.
+
+**Every `/api/**` request reaches `api/index.js` through the `rewrites` entry in `vercel.json`, which passes the original path as `__apiPath`.** A filesystem catch-all (`api/[...path].js`) matched only one segment on this project, so `/api/auth/me` and `/api/svg/heart.svg` returned Vercel's own 404 and never ran any of this code. A static filename plus an explicit rewrite relies on no dynamic-route behaviour. Changing the rewrite means changing how `api/index.js` reads the path.
 
 **Vercel is the only deploy target.** A GitHub Pages workflow used to publish `docs/` on every push, from when the gallery read `docs/icons.json` in the browser. It now reads `/api/icons`, and generation, contribution, review, and the visitor count are all server-side, so a static host serves a page whose grid never fills. Keeping it would have meant maintaining a second, permanently degraded build. If a free public mirror is wanted back, the way to do it is a fallback in `index.html` to a committed `icons.json` — browse-only, with the buttons hidden — not a second deploy of the same page.
 

@@ -10,6 +10,7 @@
       "includeFiles": "docs/icons.json"
     }
   },
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/index?__apiPath=$1" }],
   "headers": [
     {
       "source": "/api/(.*)",
