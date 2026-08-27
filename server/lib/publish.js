@@ -34,7 +34,7 @@ import "./env.js";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /** Repo-relative path of an icon's source file. */
-export function iconFilePath(name) {
+function iconFilePath(name) {
   return `raw-svgs/${name}/${name}.centerline.svg`;
 }
 
