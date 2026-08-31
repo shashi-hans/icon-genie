@@ -10,6 +10,7 @@
 // the gallery sends and the admin page does not — otherwise reviewing icons would
 // inflate the number.
 import { handler, json, methodIs } from "../lib/http.js";
+import { visitorCountry } from "../lib/geo.js";
 import { ensureGuestId, isAdmin } from "../lib/session.js";
 import { getStore } from "../lib/store.js";
 
@@ -18,7 +19,8 @@ export default handler(async (req, res) => {
 
   const admin = isAdmin(req);
   const guestId = ensureGuestId(req, res);
-  const visits = await getStore().recordVisit(guestId, req.query?.visit === "1");
+  const country = visitorCountry(req);
+  const visits = await getStore().recordVisit(guestId, req.query?.visit === "1", country);
 
   return json(res, 200, {
     role: admin ? "admin" : "guest",

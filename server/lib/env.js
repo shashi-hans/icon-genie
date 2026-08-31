@@ -50,8 +50,13 @@ function parse(text) {
 
 let loaded = false;
 
-/** Read the .env files once per process. Missing files are not an error. */
-export function loadEnv() {
+/**
+ * Read the .env files once per process. Missing files are not an error.
+ *
+ * Not exported: this module is imported for its side effect, and the call below
+ * is the only one. An exported version would invite a second, ordered call site.
+ */
+function loadEnv() {
   if (loaded) return;
   loaded = true;
   for (const name of FILES) {

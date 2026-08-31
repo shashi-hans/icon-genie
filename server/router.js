@@ -15,6 +15,8 @@ const ROUTES = {
   "GET /icons/all": () => import("./routes/icons.js").then((m) => ({ default: m.all })),
   "GET /submissions": () => import("./routes/submissions.js"),
   "POST /submissions": () => import("./routes/submissions.js"),
+  "POST /theme": () => import("./routes/theme.js"),
+  "GET /visits/countries": () => import("./routes/visit-countries.js"),
   // Exact routes are matched before the patterns below, so this is not shadowed
   // by /icons/:name.
   "GET /icons/hidden": () => import("./routes/icon-item.js").then((m) => ({ default: m.hidden })),

@@ -6,7 +6,7 @@ Icon artwork is derived from the upstream sets below, each redistributed under
 its own licence. Icon names carry no source prefix, so a name does not say which
 set a drawing came from; the notices here cover the catalogue as a whole.
 
-  Phosphor Icons, Copyright (c) 2020 Phosphor Icons
+  Phosphor Icons, Copyright (c) 2023 Phosphor Icons
   https://github.com/phosphor-icons/core — MIT License
 
   Lucide, Copyright (c) for portions of Lucide are held by Cole Bemis
@@ -30,21 +30,23 @@ set a drawing came from; the notices here cover the catalogue as a whole.
   https://github.com/google/material-design-icons
   Apache License, Version 2.0
 
-  Ionicons, Copyright (c) 2015-present Ionic
+  Ionicons, Copyright (c) 2015-present Ionic (http://ionic.io/)
   https://github.com/ionic-team/ionicons — MIT License
-  (the MIT terms are the ones reproduced below)
 
 Imported artwork is rescaled onto this library's 256-unit grid; the geometry is
 otherwise unmodified. Lucide, Feather, Tabler, Heroicons and Iconoir are stroked
 drawings, stored as centerline path data from which every weight is derived.
 Material Symbols and Ionicons are filled artwork with no lighter or heavier
 variant, so each ships one weight and every other weight renders that one. The
-90 `logo-*` icons are the Ionicons brand logos. Full licence texts, including
-the Apache 2.0 text required for Material Symbols, are in LICENSES/.
+90 `logo-*` icons are the Ionicons brand logos. LICENSES/ holds the full text of
+all eight, one file per set, including the Apache 2.0 text required for Material
+Symbols. Each is a verbatim copy of the LICENSE file in the upstream repository
+linked above.
 
 The Ionicons artwork is extracted from the Ionicons TrueType font as shipped in
-@expo/vector-icons, which does not vendor Ionicons' own licence file; the
-attribution above is taken from the upstream project.
+@expo/vector-icons, which does not vendor Ionicons' own licence file.
+LICENSES/ionicons.txt is taken from the Ionicons repository itself rather than
+from that package.
 
 Brand logos reproduce third-party trademarks. Their owners' trademark rights are
 not licensed by Ionicons' MIT terms or by this licence, and use must not imply

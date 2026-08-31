@@ -6,36 +6,73 @@
     <link
       rel="icon"
       type="image/svg+xml"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2358a6ff' viewBox='0 0 256 256'><path d='M120 56v48a16 16 0 0 1-16 16H56a16 16 0 0 1-16-16V56a16 16 0 0 1 16-16h48a16 16 0 0 1 16 16m80-16h-48a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16V56a16 16 0 0 0-16-16m-96 96H56a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16v-48a16 16 0 0 0-16-16m96 0h-48a16 16 0 0 0-16 16v48a16 16 0 0 0 16 16h48a16 16 0 0 0 16-16v-48a16 16 0 0 0-16-16'/></svg>"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2315803d' viewBox='0 0 256 256'><path d='M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z'/></svg>"
     />
     <title>Icon Review — Admin</title>
-    <style>
-      :root {
-        --bg: #0d1117;
-        --panel: #161b22;
-        --border: #30363d;
-        --fg: #e6edf3;
-        --muted: #8b949e;
-        --accent: #58a6ff;
-        --ok: #3fb950;
-        --bad: #f85149;
-        --warn: #e3b341;
+    <script>
+      // Set the theme before the first paint.
+      //
+      // app.css defines the light palette on bare :root and dark under
+      // [data-theme="dark"], and lib/theme.js is a module that runs after the
+      // document has painted. Between those two moments a dark-mode visitor saw
+      // a light page — a flash on every navigation between these pages.
+      //
+      // Deliberately a plain, parser-blocking script in the head, not a module:
+      // it has to run before CSS is applied, and it is small enough to inline on
+      // every page rather than cost a request that would itself delay the paint.
+      // Storage can throw (private mode, blocked cookies), so it fails to light.
+      try {
+        var savedTheme = localStorage.getItem("icon-genie.theme");
+        if (savedTheme === "dark" || savedTheme === "light") {
+          document.documentElement.setAttribute("data-theme", savedTheme);
+        }
+      } catch (e) {
+        /* no stored preference reachable; the light default stands */
       }
-      :root[data-theme="light"] {
+    </script>
+    <style>
+      /* Light is the base palette so the first paint is the default theme; the
+         theme attribute is set from JS and would otherwise flash dark first.
+         --bad and --warn are darker here than in dark mode: the dark-mode red
+         and amber sit near 3:1 on white, too weak for the text that uses them. */
+      :root {
         --bg: #ffffff;
         --panel: #f6f8fa;
         --border: #d0d7de;
         --fg: #1f2328;
         --muted: #656d76;
-        --accent: #0969da;
+        --accent: #15803d;
+        --ok: #1a7f37;
+        --bad: #cf222e;
+        --warn: #9a6700;
+      }
+      :root[data-theme="dark"] {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --border: #30363d;
+        --fg: #e6edf3;
+        --muted: #8b949e;
+        --accent: #4ade80;
+        --ok: #3fb950;
+        --bad: #f85149;
+        --warn: #e3b341;
       }
       * { box-sizing: border-box; }
+      /* The page is a column: header, content that takes the slack, footer. Without
+         this the footer sat directly after the queue and floated mid-screen
+         whenever the list was short — which is most of the time, since an empty
+         queue is the normal state. */
+      html { height: 100%; }
       body {
         margin: 0;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
         font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         background: var(--bg);
         color: var(--fg);
       }
+      body > main { flex: 1 0 auto; }
       header {
         border-bottom: 1px solid var(--border);
         padding: 16px 20px;
@@ -44,7 +81,7 @@
         align-items: center;
         flex-wrap: wrap;
       }
-      h1 { margin: 0; font-size: 18px; }
+      h1 { margin: 0; font-size: 18px; color: var(--accent); }
       .grow { flex: 1; }
       .btn {
         background: var(--panel);
@@ -53,7 +90,7 @@
         padding: 8px 12px;
         border-radius: 8px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1;
         text-decoration: none;
         white-space: nowrap;
@@ -87,7 +124,7 @@
       .previews figcaption { font-size: 10px; color: var(--muted); margin-top: 3px; }
       .meta { min-width: 0; }
       .meta h2 { margin: 0 0 4px; font-size: 16px; }
-      dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0 12px; font-size: 13px; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0 12px; font-size: 14px; }
       dt { color: var(--muted); }
       dd { margin: 0; word-break: break-word; }
       code {
@@ -118,15 +155,57 @@
       .confirm[hidden] { display: none; }
       .confirm input {
         background: var(--bg); border: 1px solid var(--border); color: var(--fg);
-        padding: 6px 9px; border-radius: 6px; font-size: 13px; width: 180px;
+        padding: 6px 9px; border-radius: 6px; font-size: 14px; width: 180px;
       }
       .btn.danger { border-color: var(--bad); color: var(--bad); }
-      .tag { font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
+      .tag { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
       .tag.approved { border-color: var(--ok); color: var(--ok); }
       .tag.rejected { border-color: var(--bad); color: var(--bad); }
+      /* Approving this would overwrite the drawing already served under the
+         name, so it is called out above the details rather than inside them. */
+      .in-gallery {
+        margin: 6px 0 0;
+        color: var(--bad);
+        font-weight: 600;
+      }
       .tag.pending { border-color: var(--warn); color: var(--warn); }
       #status { color: var(--muted); margin-bottom: 12px; min-height: 20px; }
       #status.error { color: var(--bad); }
+      .panel-block {
+        margin-top: 28px; padding-top: 18px;
+        border-top: 1px solid var(--border);
+      }
+      .panel-block h2 { margin: 0 0 4px; font-size: 16px; color: var(--accent); }
+      .panel-block .note { margin: 0 0 12px; font-size: 12px; }
+      table.countries { border-collapse: collapse; width: 100%; max-width: 560px; font-size: 14px; }
+      table.countries th, table.countries td {
+        text-align: left; padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      table.countries th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+      /* Counts read as columns of figures, so they align on the right. */
+      table.countries td.num, table.countries th.num { text-align: right; font-variant-numeric: tabular-nums; }
+      table.countries tr:last-child td { border-bottom: 0; }
+      .flag { margin-right: 8px; }
+
+      footer {
+        /* Sticky as well as pushed down, matching the other pages: it stays on
+           screen while a long review queue scrolls under it. */
+        position: sticky;
+        bottom: 0;
+        background: var(--bg);
+        border-top: 1px solid var(--border);
+        padding: 12px 20px; margin-top: 28px;
+        font-size: 12px; color: var(--muted);
+      }
+      .footer-inner {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        max-width: 1000px; margin: 0 auto;
+      }
+      .footer-inner .spacer { margin-left: auto; }
+      footer a { color: var(--muted); }
+      .foot-dot { color: var(--border); }
+
       .gate { max-width: 420px; margin: 60px auto; text-align: center; }
       .gate input {
         width: 100%;
@@ -145,7 +224,8 @@
       <h1>Icon review</h1>
       <span class="tag" id="who">…</span>
       <span class="grow"></span>
-      <a class="btn" href="./index.html">← Gallery</a>
+      <a class="btn" href="./index.html">← Home</a>
+      <a class="btn" href="./gallery.html">Gallery</a>
       <button class="btn" id="refresh" type="button">Refresh</button>
       <button class="btn" id="logout" type="button" hidden>Log out</button>
     </header>
@@ -170,16 +250,32 @@
           <button class="btn" type="button" data-status="approved" aria-selected="false">Approved</button>
           <button class="btn" type="button" data-status="rejected" aria-selected="false">Rejected</button>
           <button class="btn" type="button" data-status="" aria-selected="false">All</button>
+          <!-- A view, not a status filter: it replaces the queue rather than
+               filtering it, so it carries its own data attribute. -->
+          <button class="btn" type="button" data-view="countries" aria-selected="false">Visitors by country</button>
         </div>
         <div id="status"></div>
         <div id="list"></div>
+
+        <!-- Aggregates only: a country tally, never a country against a guest
+             id. See supabase/migrations/0004_visit_countries.sql. -->
+        <section id="countries-block" hidden>
+          <h2 class="section-heading">Visitors by country</h2>
+          <p class="note" id="countries-note"></p>
+          <table class="countries" id="countries"></table>
+        </section>
       </section>
     </main>
+
+    <footer>
+      <div class="footer-inner" data-site-footer-bar></div>
+    </footer>
 
     <script type="module">
       // Same derivation the library and the build use, so what an admin approves
       // is what the React component will render.
       import { deriveWeightInner as weights } from "./stroke-weights.js";
+      import { initFooter } from "./lib/footer.js";
 
       const gate = document.getElementById("gate");
       const gateForm = document.getElementById("gate-form");
@@ -213,9 +309,12 @@
         return data;
       }
 
+      // Follows the same stored choice as the rest of the app. The head script
+      // has already applied it before paint; this only covers the case of the
+      // attribute never having been set.
       function applyTheme() {
-        const saved = localStorage.getItem("icon-gallery-theme");
-        if (saved) document.documentElement.setAttribute("data-theme", saved);
+        if (document.documentElement.hasAttribute("data-theme")) return;
+        document.documentElement.setAttribute("data-theme", "light");
       }
 
       function cardHtml(row) {
@@ -233,6 +332,7 @@
             <div class="previews">${previews}</div>
             <div class="meta">
               <h2>${esc(row.name)} <span class="tag ${row.status}">${row.status}</span></h2>
+              ${row.inGallery ? `<p class="in-gallery">icon already present in gallery</p>` : ""}
               <dl>
                 <dt>Component</dt><dd><code>${esc(toPascal(row.name))}</code></dd>
                 <dt>Contributor</dt><dd>${esc(row.contributor || "Anonymous")}</dd>
@@ -440,13 +540,33 @@
         }
       });
 
-      filters.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-status]");
-        if (!btn) return;
-        filter = btn.dataset.status;
-        for (const b of filters.querySelectorAll("[data-status]")) {
+      const countriesBlock = document.getElementById("countries-block");
+
+      /** Mark the pressed button and clear the rest, across both kinds. */
+      function selectFilter(btn) {
+        for (const b of filters.querySelectorAll("button")) {
           b.setAttribute("aria-selected", String(b === btn));
         }
+      }
+
+      filters.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-status], button[data-view]");
+        if (!btn) return;
+        selectFilter(btn);
+
+        if (btn.dataset.view === "countries") {
+          // The queue and the tally answer different questions, so only one is
+          // on screen at a time rather than the tally hanging below the list.
+          list.hidden = true;
+          statusEl.textContent = "";
+          countriesBlock.hidden = false;
+          loadCountries();
+          return;
+        }
+
+        countriesBlock.hidden = true;
+        list.hidden = false;
+        filter = btn.dataset.status;
         load();
       });
 
@@ -474,9 +594,92 @@
         }
       });
 
-      document.getElementById("refresh").addEventListener("click", load);
+      // Refresh reloads whichever view is showing.
+      document.getElementById("refresh").addEventListener("click", () => {
+        if (countriesBlock.hidden) load();
+        else loadCountries();
+      });
+
+      /* --- Visitors by country --------------------------------------------- */
+      // ISO alpha-2 codes come back from the API; the names come from the
+      // browser rather than a bundled country table, and the flag from the
+      // regional-indicator code points for the same two letters.
+      const countryName = (() => {
+        let names = null;
+        try {
+          names = new Intl.DisplayNames(navigator.languages ?? ["en"], { type: "region" });
+        } catch {
+          /* older browser: fall back to the raw code */
+        }
+        return (code) => {
+          // ZZ is the ISO code for "no country reported". Every row currently under
+        // it is local test traffic, so it is labelled as such — but the code also
+        // covers a real visit that arrives with no CDN header, which this name
+        // would then describe wrongly. Clear the row and rename this back if the
+        // app is ever served without a CDN in front of it.
+        if (code === "ZZ") return "ClaudeTest";
+          try {
+            return names?.of(code) || code;
+          } catch {
+            return code;
+          }
+        };
+      })();
+
+      function flagFor(code) {
+        if (!/^[A-Z]{2}$/.test(code) || code === "ZZ") return "🏳️";
+        return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+      }
+
+      async function loadCountries() {
+        const block = document.getElementById("countries-block");
+        const table = document.getElementById("countries");
+        const note = document.getElementById("countries-note");
+        try {
+          const { countries } = await api("/api/visits/countries");
+          block.hidden = false;
+          if (!countries.length) {
+            note.textContent = "No visits recorded yet.";
+            table.innerHTML = "";
+            return;
+          }
+          const totalVisitors = countries.reduce((n, c) => n + c.visitors, 0);
+          const totalViews = countries.reduce((n, c) => n + c.views, 0);
+          note.textContent =
+            `${totalVisitors.toLocaleString()} visitors and ${totalViews.toLocaleString()} views across ` +
+            `${countries.length} ${countries.length === 1 ? "country" : "countries"}. ` +
+            `Counts only — no country is stored against a visitor.`;
+          const unknown = countries.find((c) => c.country === "ZZ");
+          if (unknown) {
+            // Without this the row reads as a bug rather than as what it is: a
+            // visit that arrived with no CDN country header, which is every
+            // visit in local development.
+            note.textContent +=
+              ` "ClaudeTest" (${unknown.views.toLocaleString()} views) is traffic that reached the app` +
+              ` without a country header — local development, or a deploy with no CDN in front of it.`;
+          }
+          table.innerHTML =
+            "<tr><th>Country</th><th class='num'>Visitors</th><th class='num'>Views</th><th>Last seen</th></tr>" +
+            countries
+              .map(
+                (c) =>
+                  `<tr><td><span class="flag">${flagFor(c.country)}</span>${esc(countryName(c.country))}` +
+                  `<span class="note"> ${esc(c.country)}</span></td>` +
+                  `<td class="num">${c.visitors.toLocaleString()}</td>` +
+                  `<td class="num">${c.views.toLocaleString()}</td>` +
+                  `<td>${c.lastSeen ? new Date(c.lastSeen).toLocaleDateString() : "—"}</td></tr>`
+              )
+              .join("");
+        } catch (err) {
+          // The queue is the page's job; a missing tally must not hide it.
+          block.hidden = false;
+          note.textContent = `Could not load the country tally: ${err.message}`;
+          table.innerHTML = "";
+        }
+      }
 
       applyTheme();
+      initFooter();
       try {
         const who = await api("/api/auth/me");
         if (who.role === "admin") await showQueue();

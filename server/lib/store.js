@@ -70,7 +70,8 @@
  * @property {(name: string, by?: string) => Promise<boolean>} hideIcon    admin removal; works on built icons too
  * @property {(name: string) => Promise<boolean>} unhideIcon               true when it was hidden and now is not
  * @property {() => Promise<{name: string, hiddenAt: string|null, hiddenBy: string|null}[]>} listHiddenIcons
- * @property {(guestId: string, count: boolean) => Promise<{visitors: number, views: number}>} recordVisit
+ * @property {(guestId: string, count: boolean, country?: string) => Promise<{visitors: number, views: number}>} recordVisit
+ * @property {() => Promise<{country: string, views: number, visitors: number, lastSeen: string|null}[]>} listVisitorCountries
  */
 
 import { createSupabaseStore } from "./store-supabase.js";

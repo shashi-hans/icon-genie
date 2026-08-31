@@ -1,0 +1,255 @@
+/* Shared by every page in docs/: the landing page, the gallery, the resizer and
+   the admin review page.
+ *
+ * Only what all of them need lives here — the palette, the page chrome, and the
+ * controls that appear on more than one page. Anything specific to one page
+ * stays with that page, so a change to the gallery grid cannot repaint the
+ * resizer.
+ *
+ * Light is the base palette so the first paint is already the default theme.
+ * Defining dark here instead would flash dark before docs/lib/theme.js runs. */
+/* 26px is the largest type in the project: the header brand sits at it, and
+   nothing — including the landing page headline — goes above it. */
+:root {
+  --bg: #ffffff;
+  --panel: #f6f8fa;
+  --border: #d0d7de;
+  --fg: #1f2328;
+  --muted: #656d76;
+  --accent: #15803d;
+  /* Success and failure feedback. Both are theme-dependent: the greens and reds
+     that read on the dark background sit near 2-3:1 against white. */
+  --ok: #1a7f37;
+  --bad: #cf222e;
+  /* Every control in a header shares this height so the bar reads as one row
+     rather than a set of differently-sized boxes. */
+  --control-h: 38px;
+  /* Live preview knobs, driven by the gallery's control bar. */
+  --preview-size: 32px;
+  --preview-color: var(--fg);
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #30363d;
+  --fg: #e6edf3;
+  --muted: #8b949e;
+  --accent: #4ade80;
+  --ok: #3fb950;
+  --bad: #f85149;
+}
+
+* { box-sizing: border-box; }
+/* An author `display` rule outranks the UA stylesheet's `[hidden]`, so any
+   element given a display value would ignore the attribute. Guard it once,
+   globally, rather than per-selector. */
+[hidden] { display: none !important; }
+
+/* The page is a column: header, content that takes the slack, footer. This is
+   what keeps a sticky footer at the bottom of a short page instead of floating
+   halfway up it. */
+html { height: 100%; }
+body {
+  margin: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+body > main { flex: 1 0 auto; }
+
+/* --- Header ------------------------------------------------------------- */
+header {
+  position: sticky;
+  top: 0;
+  /* Positioning context for a pinned identity group. */
+  isolation: isolate;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  z-index: 10;
+}
+/* A page's own title carries the theme colour, like the brand in the header
+   and the panel headings. Section and dialog headings keep --fg. */
+h1 { margin: 0 0 2px; font-size: 18px; text-align: center; padding: 0 12px; color: var(--accent); }
+.tagline { color: var(--fg); margin-bottom: 2px; text-align: center; }
+.sub { color: var(--muted); margin-bottom: 12px; }
+
+/* The header of a page that is not the gallery: brand on the left, links on the
+   right, one row. */
+/* Full width on purpose: the brand sits at the far left of the page and the
+   theme toggle and welcome badge at the far right, with only the header's own
+   padding inside them. */
+.site-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.site-bar .brand {
+  font-size: 26px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  margin-right: auto;
+}
+/* The genie sits after the wordmark, decoration only — hidden from screen
+   readers, which would otherwise read out "genie" as part of the site name.
+   Emoji carry their own colour, so it is exempt from the accent rule above. */
+.site-bar .brand .brand-mark { margin-left: 8px; }
+.site-bar nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.site-bar nav a { text-decoration: none; }
+/* The page you are on is named but not offered as somewhere to go. */
+.site-bar nav a[aria-current="page"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* --- Identity badge ----------------------------------------------------- */
+/* In the nav row rather than pinned to the header corner: it used to be
+   absolute, which put it on top of the site links. */
+.who { display: inline-flex; align-items: center; gap: 8px; position: relative; }
+.who-badge {
+  display: inline-flex; align-items: center; gap: 8px; height: var(--control-h);
+  padding: 0 12px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; color: var(--muted); white-space: nowrap; cursor: pointer;
+}
+.who-badge:hover { border-color: var(--accent); }
+.who-badge .caret { color: var(--muted); font-size: 10px; }
+.who-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 15;
+  min-width: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 6px; gap: 2px;
+}
+.who-item {
+  background: none; border: 0; border-radius: 6px;
+  padding: 8px 10px; text-align: left; white-space: nowrap;
+  color: var(--fg); font: inherit; font-size: 14px; cursor: pointer;
+  text-decoration: none;
+}
+.who-item:hover { background: var(--panel); color: var(--accent); }
+
+/* --- Footer ------------------------------------------------------------- */
+footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 12px 20px;
+  font-size: 12px;
+  color: var(--muted);
+  z-index: 10;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+footer a { color: var(--muted); }
+footer .spacer { margin-left: auto; }
+
+/* --- Controls ----------------------------------------------------------- */
+.controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+input[type="search"] {
+  flex: 1;
+  min-width: 200px;
+  height: var(--control-h);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+/* Some buttons are links (Generate, the nav). They should not pick up the
+   user-agent underline. */
+a.btn { text-decoration: none; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn:disabled:hover { border-color: var(--border); }
+
+/* A control group: a label and its inputs inside one bordered box. */
+.ctl {
+  height: var(--control-h);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.ctl label { color: var(--muted); font-size: 12px; }
+/* Native dropdowns.
+ *
+ * The list a <select> opens is drawn by the browser, not by this stylesheet, and
+ * in dark mode it picked up the dark scheme and rendered near-unreadable grey on
+ * grey. `color-scheme: light` tells the browser to draw that popup with its light
+ * widget colours; the explicit option colours are the belt to that braces, since
+ * a few engines honour one and not the other.
+ *
+ * The closed control is still ours — background: none below lets the surrounding
+ * .ctl group show through, and the selected text keeps the theme foreground — so
+ * only the open list changes.
+ */
+select { color-scheme: light; }
+select option {
+  background-color: #ffffff;
+  color: #111111;
+}
+/* A group whose last child is a button: the button runs to the group's edge
+   instead of leaving the shared 12px of padding behind it, so the two read as
+   one segmented control. The 7px corners are the group's 8px radius less its
+   1px border. */
+.ctl-flush { padding-right: 0; }
+.ctl-flush > .btn:last-child {
+  align-self: stretch;
+  height: auto;
+  border-width: 0 0 0 1px;
+  border-radius: 0 7px 7px 0;
+}
+.ctl-flush > .btn:last-child:hover { border-color: var(--accent); color: var(--accent); }
+
+/* --- Toast -------------------------------------------------------------- */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+  z-index: 40;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
