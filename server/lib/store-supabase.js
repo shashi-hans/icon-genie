@@ -503,14 +503,62 @@ export function createSupabaseStore() {
      * happen inside one function call because concurrent page loads through
      * read-modify-write here would lose counts.
      */
-    async recordVisit(guestId, count = true) {
-      const result = await sb("POST", "/rpc/record_visit", {
-        body: { p_guest_id: guestId ?? "", p_count: Boolean(count) },
-      });
+    async recordVisit(guestId, count = true, country = "") {
+      const body = { p_guest_id: guestId ?? "", p_count: Boolean(count) };
+      let result;
+      try {
+        // The function normalises anything unusable to 'ZZ', so a missing or
+        // malformed header never fails the page load.
+        result = await sb("POST", "/rpc/record_visit", {
+          body: { ...body, p_country: String(country ?? "") },
+        });
+      } catch (err) {
+        // Migration 0004 adds the country argument. Until it is applied the
+        // three-argument function does not exist, and PostgREST answers 404
+        // (PGRST202, "no function matches"). Every page calls this on load, so
+        // falling back to the older signature keeps the site working on a
+        // database that is a migration behind, rather than turning a pending
+        // migration into a site-wide 500.
+        if (err?.status !== 404) throw err;
+        console.warn("record_visit has no country argument; apply migration 0004");
+        result = await sb("POST", "/rpc/record_visit", { body });
+      }
       return {
         visitors: Number(result?.visitors ?? 0),
         views: Number(result?.views ?? 0),
       };
+    },
+
+    /**
+     * The per-country tally, busiest first, with unknown last however large it
+     * is: it is the absence of a country rather than a place, so leading the
+     * table with it buries the real ones. Aggregates only — there is no row
+     * anywhere linking a country to a guest id.
+     */
+    async listVisitorCountries() {
+      let rows;
+      try {
+        rows = await sb("GET", "/visit_countries?order=visitors.desc,views.desc");
+      } catch (err) {
+        // Same reason as above: the table arrives with migration 0004. An empty
+        // tally reads as "nothing recorded yet", which is what the admin page
+        // shows anyway before any visit has been counted.
+        if (err?.status !== 404) throw err;
+        return [];
+      }
+      // Sorted here rather than in the query: PostgREST's `order` takes columns,
+      // not expressions, so "unknown last" cannot be asked for in the URL.
+      return (rows ?? [])
+        .map((r) => ({
+          country: r.country,
+          views: Number(r.views ?? 0),
+          visitors: Number(r.visitors ?? 0),
+          lastSeen: iso(r.last_seen),
+        }))
+        .sort((a, b) => {
+          if ((a.country === "ZZ") !== (b.country === "ZZ")) return a.country === "ZZ" ? 1 : -1;
+          return b.visitors - a.visitors || b.views - a.views;
+        });
     },
   };
 }

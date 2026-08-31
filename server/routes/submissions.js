@@ -25,10 +25,19 @@ export default handler(async (req, res) => {
       throw new HttpError(400, `Unknown status "${status}".`);
     }
     const submissions = await store.listSubmissions({ status });
+    // Whether the name is in the gallery already, checked now rather than
+    // trusted from submit time. POST refuses a built icon's name, but that
+    // answer goes stale: approving one submission puts its name in the
+    // catalogue, and another queued earlier under the same name passed the
+    // check before that happened. hasIcon sees approved contributions too, not
+    // just the built seed.
+    const annotated = await Promise.all(
+      submissions.map(async (s) => ({ ...s, inGallery: await store.hasIcon(s.name) }))
+    );
     // Counted by the store rather than by walking a listing: listSubmissions is
     // paged, so totals derived from it stop being totals past the first page.
     const counts = await store.countSubmissions();
-    return json(res, 200, { submissions, counts });
+    return json(res, 200, { submissions: annotated, counts });
   }
 
   // --- POST: anyone may contribute -----------------------------------------
