@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2315803d' viewBox='0 0 256 256'><path d='M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z'/></svg>"
+    />
+    <title>Icon Genie generator</title>
+    <script>
+      // Set the theme before the first paint.
+      //
+      // app.css defines the light palette on bare :root and dark under
+      // [data-theme="dark"], and lib/theme.js is a module that runs after the
+      // document has painted. Between those two moments a dark-mode visitor saw
+      // a light page — a flash on every navigation between these pages.
+      //
+      // Deliberately a plain, parser-blocking script in the head, not a module:
+      // it has to run before CSS is applied, and it is small enough to inline on
+      // every page rather than cost a request that would itself delay the paint.
+      // Storage can throw (private mode, blocked cookies), so it fails to light.
+      try {
+        var savedTheme = localStorage.getItem("icon-genie.theme");
+        if (savedTheme === "dark" || savedTheme === "light") {
+          document.documentElement.setAttribute("data-theme", savedTheme);
+        }
+      } catch (e) {
+        /* no stored preference reachable; the light default stands */
+      }
+    </script>
+    <link rel="stylesheet" href="./app.css" />
+    <style>
+      /* The generator is a page, not a dialog: the two columns that used to sit
+         inside a modal are the page's own layout. Everything below is specific to
+         it; the palette, chrome and buttons come from app.css. */
+      main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 44px; }
+      .page-title { margin: 0 0 4px; font-size: 20px; color: var(--accent); }
+      .page-note { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+      /* The shared height is for the header bar; dialogs pack more buttons into
+         less room, so they opt back out. */
+      .modal-card .btn, .confirm .btn, .gen-tabs .btn { height: auto; padding: 8px 12px; }
+      /* --- Detail modal --------------------------------------------------- */
+      /* Every dialog on the page, so a new one is centred by default rather than
+         landing in the document flow. */
+      #modal, #gen-modal, #login-modal, #hist-modal, #contrib-gate {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+      }
+      .modal-card {
+        position: relative;
+        width: min(560px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .modal-close:hover { border-color: var(--accent); }
+      .modal-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+      }
+      .modal-preview svg {
+        width: 96px;
+        height: 96px;
+        color: var(--preview-color);
+      }
+      .modal-card h2 { margin: 0 0 2px; font-size: 18px; }
+      .modal-meta { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+      /* Credit line for a community icon. Sits above the weight tabs so it reads
+         as part of the icon's identity rather than as export detail. */
+      .modal-credit {
+        display: flex; align-items: center; gap: 8px;
+        margin: 0 0 14px; padding: 8px 10px;
+        border: 1px solid var(--border); border-left: 3px solid #3fb950;
+        border-radius: 8px; font-size: 14px;
+      }
+      .modal-credit[hidden] { display: none; }
+      .modal-credit .label { color: var(--muted); }
+      .modal-credit .value { font-weight: 600; word-break: break-word; }
+      .snippet {
+        margin: 0 0 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        overflow-x: auto;
+        font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--fg);
+        white-space: pre;
+      }
+      .export-row { display: flex; flex-wrap: wrap; gap: 8px; }
+      /* AI generate */
+      /* Wider than the icon-detail dialog: this one stacks a prompt, a source
+         picker, a paste box, six previews and two button rows, and the extra
+         width lets those sit side by side instead of scrolling. */
+      #gen-modal .modal-card { width: min(960px, 100%); }
+      .gen-row { display: flex; gap: 8px; margin: 12px 0; }
+      .gen-row input { flex: 1; }
+      /* A model's reply is a wall of path data; two default rows meant scrolling
+         inside the box to check what was pasted. */
+      #gen-paste {
+        width: 100%;
+        min-height: 160px;
+        resize: vertical;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+        margin-bottom: 10px;
+      }
+      #gen-paste:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .gen-status { color: var(--muted); min-height: 18px; margin-bottom: 8px; }
+      .gen-status.error { color: var(--bad); }
+      /* Work in progress: the theme colour, so it reads as activity rather
+         than as the muted idle text or the red failure text. */
+      .gen-status.busy { color: var(--accent); }
+      /* Inside a control group the select drops its own box: the group draws it.
+         Only the popup list stays light, from the shared rule in app.css. */
+      .ctl select {
+        background: none; border: 0; color: var(--fg);
+        font: inherit; font-size: 14px; padding: 0; cursor: pointer;
+      }
+      .ctl select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 0 12px; }
+      .gen-weights figure { margin: 0; text-align: center; }
+      .gen-weights .gen-cell {
+        border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .gen-weights .gen-cell svg { width: 100%; height: auto; color: var(--preview-color); }
+      .gen-weights figcaption { color: var(--muted); font-size: 12px; margin-top: 4px; }
+      /* Generation source picker + per-source panels */
+      .gen-tabs { display: flex; gap: 6px; margin: 12px 0 10px; flex-wrap: wrap; }
+      .gen-tabs .btn[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
+      .gen-panel[hidden] { display: none; }
+      .gen-note { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 6px 0 8px; }
+      .gen-note strong { color: var(--fg); font-weight: 600; }
+      .hist-list { display: grid; gap: 8px; margin: 12px 0; }
+      .hist-row {
+        display: flex; align-items: center; gap: 12px;
+        border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+      }
+      .hist-row svg { width: 28px; height: 28px; flex: none; color: var(--preview-color); }
+      .hist-name { font-weight: 600; }
+      .hist-meta { color: var(--muted); font-size: 12px; }
+      .hist-row .grow { flex: 1; min-width: 0; }
+      /* Two columns once the dialog is wide enough: describing an icon on the
+         left, the result and its actions on the right. Stacks below 820px, where
+         side-by-side columns would be too narrow to read. */
+      .gen-body { display: grid; gap: 0 22px; align-items: start; }
+        #gen-modal .modal-card .gen-body { grid-template-columns: 1fr 1fr; }
+      .gen-right[hidden] { display: none; }
+      /* "Match a website's theme colour", in both the detail and generate dialogs. */
+      .site-theme {
+        margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+      }
+      .site-theme > label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+      .site-theme-row { display: flex; gap: 8px; }
+      .site-theme-row input {
+        flex: 1; min-width: 0;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 8px 10px; border-radius: 8px; font-size: 14px;
+      }
+      .site-theme-row .btn { height: auto; flex: none; }
+      .site-theme-out {
+        margin: 10px 0 4px; font-size: 12px; color: var(--muted);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+      .site-theme-out:empty { display: none; }
+      .site-theme-out.error { color: var(--bad); }
+      .site-theme-out.ok { color: var(--ok); }
+      /* Spaced away from the row above and whatever follows the panel. The
+         swatch output between them collapses to nothing when empty, so this row
+         would otherwise sit flush against both. */
+      .site-theme-manual { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+      .site-theme-manual label { color: var(--muted); font-size: 12px; flex: none; }
+      .site-theme-manual input {
+        width: 96px; flex: none;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 7px 10px; border-radius: 8px; font-size: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .site-theme-manual .btn { height: auto; padding: 7px 12px; flex: none; }
+      /* The selection ring needs room, so the row carries the gap below the
+         swatches rather than the container clipping it. */
+      .swatch-label { color: var(--muted); font-size: 12px; flex: none; }
+      .swatch-row { display: inline-flex; gap: 10px; padding: 3px 0 5px; }
+      .swatch {
+        width: 22px; height: 22px; padding: 0;
+        border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+      }
+      .swatch:hover { border-color: var(--accent); }
+      /* Two rings: one in the page background to separate the marker from the
+         swatch's own colour, one in the foreground to be visible on any hue. */
+      .swatch.selected {
+        border-color: transparent;
+        box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
+      }
+      /* The contribution gate sits above the generate dialog it interrupts. */
+      #contrib-gate { z-index: 30; }
+      .gate-card { width: min(440px, 100%); }
+      .gate-card h3 { margin: 0 0 6px; font-size: 15px; }
+      .gate-note {
+        margin: 0 0 14px;
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .gate-card input {
+        width: 100%; margin: 6px 0 10px;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 9px 12px; border-radius: 8px; font-size: 14px;
+      }
+      .gate-card .btn { width: 100%; }
+      /* Freed from the modal, the two columns get the full page width. */
+      .gen-body { display: grid; grid-template-columns: 1fr; gap: 24px; }
+      @media (min-width: 900px) { .gen-body { grid-template-columns: 1fr 1fr; } }
+      .gen-right[hidden] { display: none; }
+      /* The empty state, before anything has been generated. */
+      .gen-placeholder {
+        border: 1px dashed var(--border); border-radius: 12px;
+        padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header data-site-header></header>
+
+    <main>
+      <h2 class="page-title">🧞 Generate an icon</h2>
+      <p class="page-note">
+        Describe an icon. The AI draws it as one to four outlines, and all six weights are derived
+        from them. Every result is checked in this page before it renders.
+      </p>
+      <div class="gen-body">
+         <div class="gen-left">
+        <!-- On the paste tab, Generate moves down beside the reply box and
+             Copy prompt takes this slot — it acts on the description above it.
+             selectSource() relocates the two buttons; there is only ever one of
+             each, so both keep their single listener. -->
+        <div class="gen-row" id="gen-row-top">
+          <input id="gen-prompt" type="text" placeholder="e.g. a watering can, a shield with a check" autocomplete="off" />
+          <button class="btn" id="gen-run" type="button">Generate</button>
+          <button class="btn" id="gen-copy-prompt" type="button" hidden>Copy prompt</button>
+        </div>
+
+        <div class="gen-tabs" role="tablist" aria-label="Generation source">
+          <button class="btn" type="button" role="tab" data-gensrc="hosted" aria-selected="true">Free (no setup)</button>
+          <button class="btn" type="button" role="tab" data-gensrc="key" aria-selected="false">Your API key</button>
+          <button class="btn" type="button" role="tab" data-gensrc="paste" aria-selected="false">Your AI chat (manual)</button>
+        </div>
+
+        <div class="gen-panel" id="gen-panel-hosted">
+          <p class="gen-note">
+            Runs on a free hosted model. No key, no account. Your description is sent to
+            this site's server and on to the model host; nothing else about you goes with
+            it. Free models are weaker at precise path geometry, so expect rougher shapes
+            than the drawn icons.
+          </p>
+        </div>
+
+        <div class="gen-panel" id="gen-panel-key" hidden>
+          <p class="gen-note">
+            Calls your provider straight from this page, billed to your own account. Type a
+            description, press Generate, get an icon — no copy-paste.
+            <strong>The key is sent only to the provider you name, never to this site's server.</strong>
+            By default it lives in this field and is dropped when you close the dialog; tick
+            Remember below to keep it in this browser instead.
+          </p>
+          <div class="gen-fields">
+            <input id="gen-model" type="text" placeholder="model, e.g. gpt-4.1-mini" autocomplete="off" spellcheck="false" />
+            <input id="gen-key" type="password" placeholder="API key" autocomplete="off" spellcheck="false" />
+            <input class="full" id="gen-base" type="text" placeholder="base URL (optional — inferred from the model name)" autocomplete="off" spellcheck="false" />
+          </div>
+          <label class="gen-remember">
+            <input id="gen-remember" type="checkbox" />
+            Remember on this device, so generating is one step next time.
+            <span>Stores the key in this browser's localStorage. Any script running on this
+            page could then read it — leave it off on a shared or untrusted machine.</span>
+          </label>
+        </div>
+
+        <div class="gen-panel" id="gen-panel-paste" hidden>
+          <p class="gen-note">
+            Fallback for when you have no key and the free model is unavailable. Uses whatever
+            AI you are already signed in to, without this page touching your account — which is
+            also why it cannot be automated: a page cannot drive a session it is not allowed to
+            read. Nothing is sent anywhere from here.
+          </p>
+          <ol class="gen-steps">
+            <li>Type a description above, then copy the prompt.</li>
+            <li>Paste it into your own ChatGPT / Claude / Gemini tab.</li>
+            <li>Paste the JSON reply below, then press <strong>Generate</strong>.</li>
+          </ol>
+          <textarea id="gen-paste" placeholder='Paste the reply here, e.g. {"name":"watering-can","paths":["M…"]}' spellcheck="false"></textarea>
+          <!-- Below the box, not above it: Generate acts on what has just been
+               pasted, so it reads in the order the steps above describe. -->
+          <div class="gen-row" id="gen-row-paste"></div>
+        </div>
+
+        <div class="gen-status" id="gen-status"></div>
+         </div>
+         <div class="gen-placeholder" id="gen-empty">
+          Nothing generated yet. Describe an icon on the left and press Generate; the four weights
+          and the export buttons appear here.
+        </div>
+        <div class="gen-right" id="gen-result" hidden>
+          <div class="gen-weights" id="gen-weights"></div>
+          <div class="export-row">
+            <span class="ctl">
+              <label for="gen-weight">weight</label>
+              <select id="gen-weight" title="Weight to export"></select>
+            </span>
+            <button class="btn" data-genact="svg">Copy SVG</button>
+            <button class="btn" data-genact="dl-svg">Download SVG</button>
+            <button class="btn" data-genact="dl-png">Download PNG</button>
+            <button class="btn" data-genact="dl-centerline" title="The source file this library stores: geometry only, all six weights derived from it">Download source</button>
+          </div>
+
+          <!-- Same control as the detail dialog; both set the one global colour. -->
+          <div class="site-theme" data-site-theme>
+            <label>Match a website's theme colour</label>
+            <div class="site-theme-row">
+              <input type="url" data-site-url placeholder="icon-gallery.com" autocomplete="url" spellcheck="false" />
+              <button class="btn" type="button" data-site-go>Fetch theme colour</button>
+            </div>
+            <div class="site-theme-out" data-site-out></div>
+            <div class="site-theme-manual">
+              <label>or paste a colour</label>
+              <input type="text" data-hex-in maxlength="7" placeholder="#fc5846" spellcheck="false" />
+              <button class="btn" type="button" data-hex-go>Use</button>
+            </div>
+          </div>
+
+          <!-- No contributor field or Contribute button here. Contributing is not
+               a separate step any more: every export above goes through the
+               contribution gate, which is where the name is asked for. -->
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-inner" data-site-footer-bar></div>
+    </footer>
+
+    <div id="contrib-gate" hidden>
+      <div class="modal-backdrop" data-gateclose></div>
+      <div class="modal-card gate-card" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+        <button class="modal-close" type="button" data-gateclose aria-label="Close">×</button>
+        <h3 id="gate-title">Contribute this icon to the library</h3>
+        <p class="gate-note">Copy and download are available after you contribute.</p>
+        <label class="contribute-label" for="gate-contributor">
+          Your name, to credit you on the icon
+          <span>Shown publicly in the icon's details if approved. Max 20 characters, and
+          optional — leave it blank to contribute anonymously.</span>
+        </label>
+        <input id="gate-contributor" type="text" maxlength="20" placeholder="e.g. Shashi Hans" autocomplete="name" />
+        <button class="btn" type="button" id="gate-submit">Contribute and copy</button>
+        <div class="gen-status" id="gate-status"></div>
+      </div>
+    </div>
+
+    <div id="hist-modal" hidden>
+      <div class="modal-backdrop" data-histclose></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hist-title">
+        <button class="modal-close" type="button" data-histclose aria-label="Close">✕</button>
+        <h2 id="hist-title">Your history</h2>
+        <div class="modal-meta" id="hist-meta">
+          Icons you generated or contributed, kept against a cookie on this browser. Clearing
+          cookies starts a new, empty history.
+        </div>
+        <div class="hist-list" id="hist-list"></div>
+        <div class="gen-status" id="hist-status"></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { buildChatPrompt, generateWithKey, parsePastedIcon, toCenterlineSvg } from "./genie-bundle.js";
+      import { deriveWeightInner } from "./stroke-weights.js";
+      import { api, showToast, download } from "./lib/api.js";
+      import { initTheme } from "./lib/theme.js";
+      import { initHeader } from "./lib/header.js";
+      import { initFooter } from "./lib/footer.js";
+      import { initSiteTheme } from "./lib/site-theme.js";
+
+      initTheme();
+      initHeader({ current: "generator", history: true, visit: true }).then(() => {
+        document.getElementById("hist-open")?.addEventListener("click", openHistory);
+      });
+      initFooter();
+
+      const root = document.documentElement;
+      const DEFAULT_SIZE = 32;
+      let currentSize = DEFAULT_SIZE;
+      let currentColor = null;
+
+      /* --- Snippet / SVG builders ----------------------------------------- */
+      // Resolve the colour used for rendering: the picked hex, or the theme's
+      // foreground when nothing is picked (needed for PNG and standalone SVG,
+      // which cannot inherit currentColor).
+      function resolvedColor() {
+        if (currentColor) return currentColor;
+        return getComputedStyle(root).getPropertyValue("--fg").trim() || "#1f2328";
+      }
+
+      function buildSVG(icon, weight, forRaster) {
+        const markup = icon.weights[weight] || icon.weights.regular || "";
+        const fill = forRaster ? resolvedColor() : currentColor || "currentColor";
+        // `color` is set too so stroke-based paths, which use
+        // stroke="currentColor", resolve to the same value as filled ones.
+        return (
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${currentSize}" ` +
+          `height="${currentSize}" fill="${fill}" color="${fill}" viewBox="0 0 256 256">` +
+          `${markup}</svg>`
+        );
+      }
+
+      function downloadSVG(icon, weight) {
+        download(`${icon.name}-${weight}.svg`, new Blob([buildSVG(icon, weight, true)], { type: "image/svg+xml" }));
+        showToast(`Saved ${icon.name}-${weight}.svg`);
+      }
+
+      // Rasterised at 4x so the PNG is usable above the preview size.
+      function downloadPNG(icon, weight) {
+        const scale = 4;
+        const svg = buildSVG(icon, weight, true);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = currentSize * scale;
+          canvas.height = currentSize * scale;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            download(`${icon.name}-${weight}.png`, blob);
+            showToast(`Saved ${icon.name}-${weight}.png`);
+          }, "image/png");
+        };
+        img.onerror = () => showToast("Could not render that icon as a PNG");
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+      }
+
+      async function copy(text, label) {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(label);
+          return true;
+        } catch {
+          showToast("Clipboard blocked — copy it by hand");
+          return false;
+        }
+      }
+
+      /* --- AI generate ----------------------------------------------------- */
+      // Three sources produce the same thing: 1–4 centerline paths on the 256
+      // grid. All six weights are then derived client-side, mirroring
+      // scripts/derive-weights.js and src/StrokeIcon.tsx.
+      //
+      //   hosted  a free model behind this site's own /api/ai relay — no key
+      //   key     the user's own OpenAI-compatible key, called from this tab
+      //   paste   the user's own AI chat, via copy-prompt / paste-reply
+      //
+      // A page cannot read the session of an AI service the user is signed in to
+      // elsewhere: the browser's same-origin policy exists precisely to stop
+      // that, and anything that worked around it would be credential theft. The
+      // paste bridge is how this page uses a subscription it must never see.
+      //
+      // hosted and key run the identical code path, because the relay speaks the
+      // same chat-completions shape a provider does. Which upstream the relay
+      // calls is server configuration (FREE_MODEL_BASE); the page cannot choose
+      // it, and must not be able to.
+      const FREE_BASE = "/api/ai";
+      const FREE_MODEL_LABEL = "The free model";
+      const GEN_WEIGHTS = ["thin", "regular", "fill", "duotone"];
+
+      const contribGate = document.getElementById("contrib-gate");
+      const genPrompt = document.getElementById("gen-prompt");
+      const genRun = document.getElementById("gen-run");
+      const genStatus = document.getElementById("gen-status");
+      const genResult = document.getElementById("gen-result");
+      const genWeightsEl = document.getElementById("gen-weights");
+      const genWeightSel = document.getElementById("gen-weight");
+      const genTabs = document.querySelectorAll("[data-gensrc]");
+      const genModelEl = document.getElementById("gen-model");
+      const genKeyEl = document.getElementById("gen-key");
+      const genBaseEl = document.getElementById("gen-base");
+      const genPasteEl = document.getElementById("gen-paste");
+      const genCopyPrompt = document.getElementById("gen-copy-prompt");
+      const genRowTop = document.getElementById("gen-row-top");
+      const genRowPaste = document.getElementById("gen-row-paste");
+      // The contributor's chosen display name, remembered between visits so it
+      // only has to be typed once. Read by the contribution gate, which is the
+      // only place a name is asked for.
+      const CONTRIBUTOR_STORE = "shicons.contributor";
+      const genRememberEl = document.getElementById("gen-remember");
+
+      // Opt-in credential storage, off by default. localStorage is readable by any
+      // script on this origin, so this trades the XSS blast radius for not having
+      // to retype the key — the user's call, made explicitly, never assumed.
+      const KEY_STORE = "shicons.byok";
+      function loadRememberedKey() {
+        let saved = null;
+        try {
+          saved = JSON.parse(localStorage.getItem(KEY_STORE) || "null");
+        } catch {
+          // corrupt entry — treat as absent
+        }
+        if (!saved?.apiKey) return;
+        genModelEl.value = saved.model || "";
+        genKeyEl.value = saved.apiKey;
+        genBaseEl.value = saved.baseURL || "";
+        genRememberEl.checked = true;
+      }
+      function persistKey() {
+        if (!genRememberEl.checked) return localStorage.removeItem(KEY_STORE);
+        localStorage.setItem(
+          KEY_STORE,
+          JSON.stringify({
+            model: genModelEl.value.trim(),
+            apiKey: genKeyEl.value.trim(),
+            baseURL: genBaseEl.value.trim(),
+          })
+        );
+      }
+      // Unchecking clears the stored copy immediately, not at next generate.
+      genRememberEl.addEventListener("change", () => {
+        if (!genRememberEl.checked) localStorage.removeItem(KEY_STORE);
+      });
+      // Closing the dialog drops the key from the DOM — unless the user asked us
+      // to remember it, in which case emptying the field would defeat the point.
+      function forgetKeyField() {
+        if (!genRememberEl.checked) genKeyEl.value = "";
+      }
+      loadRememberedKey();
+      let genIcon = null;
+      let genSource = "hosted";
+
+      function pascal(name) {
+        const p = name
+          .split(/[^a-zA-Z0-9]+/)
+          .filter(Boolean)
+          .map((s) => s[0].toUpperCase() + s.slice(1))
+          .join("");
+        return /^[0-9]/.test(p) ? "Icon" + p : p || "Icon";
+      }
+      function selectSource(src) {
+        genSource = src;
+        for (const tab of genTabs) {
+          tab.setAttribute("aria-selected", String(tab.dataset.gensrc === src));
+        }
+        for (const id of ["hosted", "key", "paste"]) {
+          document.getElementById(`gen-panel-${id}`).hidden = id !== src;
+        }
+        // Swap where the two buttons sit. Copy prompt belongs next to the
+        // description it copies; Generate belongs next to whatever it consumes —
+        // the description on the other tabs, the pasted reply here.
+        // appendChild moves the node, so neither button is ever duplicated.
+        const paste = src === "paste";
+        (paste ? genRowPaste : genRowTop).appendChild(genRun);
+        genCopyPrompt.hidden = !paste;
+
+        // A failure belongs to the source that produced it. Leaving it up after a
+        // switch reads as if the newly-picked source had already failed.
+        genStatus.className = "gen-status";
+        genStatus.textContent = "";
+      }
+      /* --- Match a website's theme colour --------------------------------- */
+      // The panel itself lives in lib/site-theme.js. On this page a colour only
+      // has to reach the weight previews, which read --preview-color.
+      const siteTheme = initSiteTheme({
+        applyColor(hex) {
+          currentColor = hex;
+          root.style.setProperty("--preview-color", hex);
+        },
+        activeColor: () => currentColor,
+      });
+
+      /* --- AI generate: sources -------------------------------------------- */
+      // Free model, reached through this site's own relay at /api/ai. The relay
+      // pins the model and pays for the call, so the model name below is a label
+      // only and there is no key to send.
+      //
+      // This calls the same generateWithKey as the key source, which is what puts
+      // both sources behind one gate: prompt, JSON parsing, path count, and
+      // framing are enforced in this page either way. A relay response is not
+      // more trusted than a provider one — it is the same model output, relayed.
+      async function fromHosted(prompt) {
+        const icon = await generateWithKey(
+          { model: "free", apiKey: "", baseURL: FREE_BASE, label: FREE_MODEL_LABEL },
+          prompt
+        );
+        return { name: icon.name, summary: icon.summary, paths: icon.paths };
+      }
+
+      // The user's own key. The request goes from this tab straight to their
+      // provider; the key is read from the field at call time and never stored.
+      async function fromKey(prompt) {
+        const model = genModelEl.value.trim();
+        const apiKey = genKeyEl.value;
+        if (!model) throw new Error("Enter the model name.");
+        if (!apiKey.trim()) throw new Error("Enter your API key.");
+        const icon = await generateWithKey(
+          { model, apiKey: apiKey.trim(), baseURL: genBaseEl.value.trim(), label: model },
+          prompt
+        );
+        persistKey(); // only writes if the user ticked Remember; a rejected key is never stored
+        return { name: icon.name, summary: icon.summary, paths: icon.paths };
+      }
+
+      // The user's own AI chat. parsePastedIcon runs the full gate — path syntax,
+      // path count, framing — because this text came straight from a chat window.
+      function fromPaste(prompt) {
+        const text = genPasteEl.value.trim();
+        if (!text) throw new Error("Paste the reply from your AI chat first.");
+        const icon = parsePastedIcon(text, prompt);
+        return { name: icon.name, summary: icon.summary, paths: icon.paths };
+      }
+
+      async function runGenerate() {
+        const prompt = genPrompt.value.trim();
+        if (!prompt) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = "Enter a description first.";
+          return;
+        }
+        genRun.disabled = true;
+        genResult.hidden = true;
+        genStatus.className = "gen-status busy";
+        genStatus.textContent =
+          genSource === "paste" ? "Reading the pasted reply…" : "Generating… the AI is drawing the outlines.";
+        try {
+          const out =
+            genSource === "key" ? await fromKey(prompt)
+            : genSource === "paste" ? fromPaste(prompt)
+            : await fromHosted(prompt);
+          genIcon = {
+            name: out.name || "icon",
+            component: pascal(out.name || "icon"),
+            kind: "stroke",
+            generated: true,
+            summary: out.summary || "",
+            centerline: out.paths,
+            weights: deriveWeightInner(out.paths),
+          };
+          renderGen();
+          recordGenerated(genIcon); // fire and forget; history must not gate the result
+          const count = out.paths.length;
+          // Out of the busy state: the message is a result now, not progress.
+          genStatus.className = "gen-status";
+          genStatus.textContent =
+            `Generated "${genIcon.name}" (${count} path${count === 1 ? "" : "s"}). ` +
+            `Pick a weight to export, or contribute it to the library.`;
+        } catch (err) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = `Couldn't generate: ${err.message}`;
+        } finally {
+          genRun.disabled = false;
+        }
+      }
+      function renderGen() {
+        // A fresh icon starts a fresh contribution: an open gate belongs to the
+        // drawing it was opened for, not to this new one.
+        closeGate();
+        genWeightsEl.innerHTML = GEN_WEIGHTS.map(
+          (w) =>
+            `<figure><div class="gen-cell"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${genIcon.weights[w]}</svg></div><figcaption>${w}</figcaption></figure>`
+        ).join("");
+        genWeightSel.innerHTML = GEN_WEIGHTS.map(
+          (w) => `<option value="${w}"${w === "regular" ? " selected" : ""}>${w}</option>`
+        ).join("");
+        genResult.hidden = false;
+        document.getElementById("gen-empty").hidden = true;
+      }
+
+      // The library's own source format: geometry only, no paint attributes.
+      // Dropping this at raw-svgs/<name>/<name>.centerline.svg and running
+      // `npm run build:icons` is all it takes to add the icon by hand — the route
+      // to take when the hosted contribution endpoint is unavailable.
+      function downloadCenterline(icon) {
+        const svg = toCenterlineSvg(icon.centerline);
+        download(`${icon.name}.centerline.svg`, new Blob([svg + "\n"], { type: "image/svg+xml" }));
+        showToast(`Saved ${icon.name}.centerline.svg`);
+      }
+
+      // Submits the icon to this site's own review queue, which the admin page
+      // reads. It replaces the old direct-to-GitHub call: the queue is what lets
+      // an admin see the name and details before anything reaches the library,
+      // and it keeps a repo-write token out of the request path entirely.
+      /**
+       * The submission itself, called by the gate that every copy and download
+       * goes through. Throws on refusal so the gate can report it and hold the
+       * export back; marks the icon submitted so later exports run straight
+       * through instead of asking again.
+       */
+      async function submitIcon(contributor) {
+        const { submission } = await api("/api/submissions", {
+          method: "POST",
+          body: JSON.stringify({
+            name: genIcon.name,
+            paths: genIcon.centerline,
+            prompt: genPrompt.value.trim(),
+            summary: genIcon.summary || "",
+            source: genSource,
+            contributor,
+          }),
+        });
+        // Remember the name so a repeat contributor does not retype it. It is
+        // the name they asked to have shown publicly, not a secret.
+        if (contributor) localStorage.setItem(CONTRIBUTOR_STORE, contributor);
+        // An icon can only be contributed once, so the gate does not reappear for
+        // it and later exports run without asking.
+        genIcon.submitted = true;
+        return submission;
+      }
+
+      /* --- The contribution gate in front of every export ------------------ */
+      // Copying or downloading a generated icon contributes it first. The export
+      // runs only after the submission succeeds: closing the gate, or a refusal
+      // from the server, leaves the user with nothing, which is the point of
+      // gating rather than nudging.
+      const gateContributorEl = document.getElementById("gate-contributor");
+      const gateStatus = document.getElementById("gate-status");
+      const gateSubmit = document.getElementById("gate-submit");
+      let pendingExport = null;
+
+      /** Run one export. Called directly once the icon has been contributed. */
+      function runExport(act, weight) {
+        if (act === "svg") copy(buildSVG(genIcon, weight, false), "Copied SVG");
+        else if (act === "dl-svg") downloadSVG(genIcon, weight);
+        else if (act === "dl-png") downloadPNG(genIcon, weight);
+        else if (act === "dl-centerline") downloadCenterline(genIcon);
+      }
+
+      function openGate(act, weight) {
+        pendingExport = { act, weight };
+        gateSubmit.textContent = act === "svg" ? "Contribute and copy" : "Contribute and download";
+        gateSubmit.disabled = false;
+        gateStatus.className = "gen-status";
+        gateStatus.textContent = "";
+        // Prefilled from the last contribution on this device, so a repeat
+        // contributor does not retype their name.
+        gateContributorEl.value = localStorage.getItem(CONTRIBUTOR_STORE) || "";
+        contribGate.hidden = false;
+        gateContributorEl.focus();
+      }
+
+      function closeGate() {
+        contribGate.hidden = true;
+        pendingExport = null;
+      }
+
+      contribGate.addEventListener("click", (e) => {
+        if (e.target.dataset.gateclose !== undefined) closeGate();
+      });
+
+      gateSubmit.addEventListener("click", async () => {
+        if (!genIcon || !pendingExport) return;
+        const { act, weight } = pendingExport;
+        gateSubmit.disabled = true;
+        gateStatus.className = "gen-status";
+        gateStatus.textContent = "Submitting to the library queue…";
+        try {
+          const submission = await submitIcon(gateContributorEl.value.trim());
+          // Mirrored onto the generate panel so the outcome is still visible
+          // after the gate closes.
+          genStatus.className = "gen-status";
+          genStatus.textContent =
+            `Submitted "${submission.name}" for review, credited to ${submission.contributor}. ` +
+            `An admin decides whether it joins the library — track it under History.`;
+          closeGate();
+          runExport(act, weight);
+        } catch (err) {
+          // The export does not run. Nothing is copied or downloaded, which the
+          // note in the dialog already told the user.
+          gateStatus.className = "gen-status error";
+          gateStatus.textContent = `Couldn't submit: ${err.message}. Nothing was copied or downloaded.`;
+          gateSubmit.disabled = false;
+        }
+      });
+
+      genRun.addEventListener("click", runGenerate);
+      genPrompt.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") runGenerate();
+      });
+      for (const tab of genTabs) {
+        tab.addEventListener("click", () => selectSource(tab.dataset.gensrc));
+      }
+      selectSource(genSource);
+      // Confirming on the button as well as in the toast: this button sits in a
+      // modal and the toast does not, so the reply to a click has to appear where
+      // the pointer already is. Read once, before any flash, so a click during
+      // one restores the real label rather than freezing "Copied".
+      const COPY_PROMPT_LABEL = genCopyPrompt.textContent;
+      const COPIED_FLASH_MS = 3000;
+      let copiedFlashTimer = 0;
+
+      genCopyPrompt.addEventListener("click", async () => {
+        const prompt = genPrompt.value.trim();
+        if (!prompt) {
+          genStatus.className = "gen-status error";
+          genStatus.textContent = "Enter a description first.";
+          return;
+        }
+        const copied = await copy(buildChatPrompt(prompt), "Prompt copied — paste it into your AI chat");
+        // A failed copy keeps the original label: "Copied" over an empty clipboard
+        // would send the user to paste nothing into their chat.
+        if (!copied) return;
+        genCopyPrompt.textContent = "✓ Copied";
+        genCopyPrompt.classList.add("ok");
+        clearTimeout(copiedFlashTimer);
+        copiedFlashTimer = setTimeout(() => {
+          genCopyPrompt.textContent = COPY_PROMPT_LABEL;
+          genCopyPrompt.classList.remove("ok");
+        }, COPIED_FLASH_MS);
+      });
+      // Bound to the document, not to a dialog: this page has no modal shell to
+      // delegate from — the generator is the page. Binding to the element that
+      // used to wrap it threw here, and everything defined after this line
+      // (including the history dialog) never ran.
+      document.addEventListener("click", (e) => {
+        const act = e.target instanceof Element ? e.target.dataset.genact : undefined;
+        if (!act || !genIcon) return;
+        const w = genWeightSel.value;
+        // Every export contributes first. Already contributed, so nothing left
+        // to ask: run it straight away.
+        if (genIcon.submitted) return runExport(act, w);
+        openGate(act, w);
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !contribGate.hidden) closeGate();
+      });
+
+      /* --- History --------------------------------------------------------- */
+      // What this browser has generated and contributed, scoped to the guest
+      // cookie: the server has no endpoint that takes someone else's id.
+      const histModal = document.getElementById("hist-modal");
+      const histList = document.getElementById("hist-list");
+      const histStatus = document.getElementById("hist-status");
+
+      async function openHistory() {
+        histModal.hidden = false;
+        histStatus.className = "gen-status";
+        histStatus.textContent = "Loading…";
+        histList.innerHTML = "";
+        try {
+          const { entries } = await api("/api/history");
+          histStatus.textContent = entries.length ? "" : "Nothing yet. Generate an icon and it shows up here.";
+          histList.innerHTML = entries.map(histRowHtml).join("");
+        } catch (err) {
+          histStatus.className = "gen-status error";
+          histStatus.textContent = `Couldn't load history: ${err.message}`;
+        }
+      }
+
+      function histRowHtml(entry) {
+        const inner = deriveWeightInner(entry.paths).regular;
+        const when = new Date(entry.createdAt).toLocaleString();
+        const status = entry.status
+          ? `<span class="tag ${entry.status}">${entry.status}</span>`
+          : `<span class="tag">${entry.kind}</span>`;
+        return (
+          `<div class="hist-row">` +
+          `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${inner}</svg>` +
+          `<span class="grow"><span class="hist-name">${entry.name}</span>` +
+          `<div class="hist-meta">${entry.kind} · ${when}</div></span>${status}</div>`
+        );
+      }
+
+      // Record a generation so it survives a reload. Best-effort: a failure here
+      // must not cost the user the icon they just generated.
+      async function recordGenerated(icon) {
+        try {
+          await api("/api/history", {
+            method: "POST",
+            body: JSON.stringify({ name: icon.name, paths: icon.centerline }),
+          });
+        } catch {
+          // history is a convenience, not part of the generate result
+        }
+      }
+
+      histModal.addEventListener("click", (e) => {
+        if (e.target.dataset.histclose !== undefined) histModal.hidden = true;
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !histModal.hidden) histModal.hidden = true;
+      });
+    </script>
+  </body>
+</html>

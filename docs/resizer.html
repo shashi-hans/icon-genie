@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2315803d' viewBox='0 0 256 256'><path d='M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z'/></svg>"
+    />
+    <title>Icon Resizer — Icon Genie</title>
+    <script>
+      // Set the theme before the first paint.
+      //
+      // app.css defines the light palette on bare :root and dark under
+      // [data-theme="dark"], and lib/theme.js is a module that runs after the
+      // document has painted. Between those two moments a dark-mode visitor saw
+      // a light page — a flash on every navigation between these pages.
+      //
+      // Deliberately a plain, parser-blocking script in the head, not a module:
+      // it has to run before CSS is applied, and it is small enough to inline on
+      // every page rather than cost a request that would itself delay the paint.
+      // Storage can throw (private mode, blocked cookies), so it fails to light.
+      try {
+        var savedTheme = localStorage.getItem("icon-genie.theme");
+        if (savedTheme === "dark" || savedTheme === "light") {
+          document.documentElement.setAttribute("data-theme", savedTheme);
+        }
+      } catch (e) {
+        /* no stored preference reachable; the light default stands */
+      }
+    </script>
+    <link rel="stylesheet" href="./app.css" />
+    <style>
+      main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
+      h2 { margin: 0 0 6px; font-size: 20px; color: var(--accent); }
+      .note { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+
+      .drop {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 36px 20px;
+        text-align: center;
+        color: var(--muted);
+        background: var(--panel);
+        cursor: pointer;
+      }
+      .drop:hover, .drop.over { border-color: var(--accent); color: var(--fg); }
+      .drop strong { color: var(--fg); display: block; margin-bottom: 4px; font-size: 15px; }
+
+      .panel {
+        margin-top: 20px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+      }
+      .panel h3 { margin: 0 0 10px; font-size: 14px; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .row + .row { margin-top: 12px; }
+
+      /* The source, on a chequerboard so a transparent PNG reads as transparent
+         rather than as white. */
+      .source-preview {
+        width: 96px; height: 96px; flex: none;
+        border: 1px solid var(--border); border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        background-color: var(--panel);
+        background-image:
+          linear-gradient(45deg, rgba(128, 128, 128, 0.18) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(128, 128, 128, 0.18) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.18) 75%),
+          linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.18) 75%);
+        background-size: 12px 12px;
+        background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+      }
+      .source-preview img { max-width: 80px; max-height: 80px; }
+      .source-meta { font-size: 14px; color: var(--muted); }
+      .source-meta strong { color: var(--fg); display: block; font-size: 14px; }
+
+      .sizes { display: flex; gap: 8px; flex-wrap: wrap; }
+      .size-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        border: 1px solid var(--border); background: var(--panel); color: var(--fg);
+        border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer;
+      }
+      .size-chip.on { border-color: var(--accent); color: var(--accent); }
+      .size-chip input { margin: 0; accent-color: var(--accent); }
+
+      .custom-size input {
+        width: 90px;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 7px 10px; border-radius: 8px; font-size: 14px;
+      }
+
+      .results { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+      .result { text-align: center; font-size: 12px; color: var(--muted); }
+      .result canvas {
+        display: block; margin: 0 auto 6px;
+        border: 1px solid var(--border); border-radius: 8px; background: transparent;
+      }
+      /* --- Match a website's theme colour ---------------------------------- */
+      .site-theme { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+      .site-theme > label { display: block; color: var(--fg); font-size: 14px; margin-bottom: 6px; }
+      .site-theme-row { display: flex; gap: 8px; }
+      .site-theme-row input {
+        flex: 1; min-width: 0;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 8px 10px; border-radius: 8px; font-size: 14px;
+      }
+      .site-theme-row .btn { height: auto; flex: none; }
+      .site-theme-out {
+        margin: 10px 0 4px; font-size: 12px; color: var(--muted);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+      .site-theme-out:empty { display: none; }
+      .site-theme-out.error { color: var(--bad); }
+      .site-theme-out.ok { color: var(--ok); }
+      .site-theme-manual { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+      .site-theme-manual label { color: var(--muted); font-size: 12px; flex: none; }
+      .site-theme-manual input {
+        width: 96px; flex: none;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 7px 10px; border-radius: 8px; font-size: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .site-theme-manual .btn { height: auto; padding: 7px 12px; flex: none; }
+      .swatch-label { color: var(--muted); font-size: 12px; flex: none; }
+      .swatch-row { display: inline-flex; gap: 10px; padding: 3px 0 5px; }
+      .swatch {
+        width: 22px; height: 22px; padding: 0;
+        border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+      }
+      .swatch:hover { border-color: var(--accent); }
+      .swatch.selected {
+        border-color: transparent;
+        box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
+      }
+
+      .status { font-size: 14px; margin-top: 12px; }
+      .status.error { color: var(--bad); }
+      .status.ok { color: var(--ok); }
+    </style>
+  </head>
+  <body>
+    <header data-site-header></header>
+
+    <main>
+      <h2>Icon Resizer</h2>
+      <p class="note">
+        Drop in an SVG or a raster image, choose the sizes you need, and download them as PNGs.
+        Everything happens in this tab: the file is never uploaded and never leaves your machine.
+      </p>
+
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose an image">
+        <strong>Drop an image here</strong>
+        or click to choose one · SVG, PNG, JPEG, WebP or GIF · up to 5 MB
+      </div>
+      <input type="file" id="file" accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp,image/gif" hidden />
+
+      <div class="panel" id="panel" hidden>
+        <div class="row">
+          <div class="source-preview"><img id="src-img" alt="" /></div>
+          <div class="source-meta">
+            <strong id="src-name">—</strong>
+            <span id="src-info"></span>
+          </div>
+          <span class="spacer" style="margin-left: auto"></span>
+          <button class="btn" type="button" id="clear">Choose another</button>
+        </div>
+
+        <div class="row">
+          <span class="ctl" style="border: 0; background: none; padding: 0">
+            <label>Sizes</label>
+          </span>
+          <div class="sizes" id="sizes"></div>
+          <span class="ctl custom-size">
+            <label for="custom">custom</label>
+            <input id="custom" type="number" min="1" max="2048" placeholder="e.g. 320" />
+            <button class="btn" type="button" id="add-size">Add</button>
+          </span>
+        </div>
+
+        <!-- Same control as the gallery and the generator, and the same module
+             behind it. It only bites on an SVG drawn in currentColor: a raster
+             image has no colour to redirect, and an SVG with its own fills would
+             have that artwork overwritten rather than tinted. loadFile() decides
+             which of those applies and says so. -->
+        <div class="site-theme" data-site-theme hidden id="theme-panel">
+          <label>Match a website's theme colour</label>
+          <div class="site-theme-row">
+            <input type="url" data-site-url placeholder="icon-gallery.com" autocomplete="url" spellcheck="false" />
+            <button class="btn" type="button" data-site-go>Fetch theme colour</button>
+          </div>
+          <div class="site-theme-out" data-site-out></div>
+          <div class="site-theme-manual">
+            <label>or paste a colour</label>
+            <input type="text" data-hex-in maxlength="7" placeholder="#fc5846" spellcheck="false" />
+            <button class="btn" type="button" data-hex-go>Use</button>
+          </div>
+        </div>
+        <p class="note" id="theme-why" hidden></p>
+
+        <div class="row">
+          <button class="btn" type="button" id="render">Resize</button>
+          <button class="btn" type="button" id="download-all" hidden>Download all</button>
+        </div>
+
+        <div class="results" id="results"></div>
+        <div class="status" id="status"></div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-inner" data-site-footer-bar></div>
+    </footer>
+
+    <script type="module">
+      import { showToast, download } from "./lib/api.js";
+      import { initTheme } from "./lib/theme.js";
+      import { initHeader } from "./lib/header.js";
+      import { initFooter } from "./lib/footer.js";
+      import { initSiteTheme } from "./lib/site-theme.js";
+
+      initTheme();
+      initHeader({ current: "resizer", visit: false });
+      initFooter();
+
+      const MAX_BYTES = 5 * 1024 * 1024;
+      const DEFAULT_SIZES = [16, 24, 32, 48, 64, 128, 256, 512];
+      const PRESELECTED = new Set([16, 32, 64, 128]);
+
+      const dropEl = document.getElementById("drop");
+      const fileEl = document.getElementById("file");
+      const panelEl = document.getElementById("panel");
+      const srcImg = document.getElementById("src-img");
+      const srcName = document.getElementById("src-name");
+      const srcInfo = document.getElementById("src-info");
+      const sizesEl = document.getElementById("sizes");
+      const resultsEl = document.getElementById("results");
+      const statusEl = document.getElementById("status");
+      const downloadAllEl = document.getElementById("download-all");
+
+      let source = null; // { name, url, width, height, isSvg, recolourable, markup }
+      // The colour a fetched theme applied, or null for "as supplied".
+      let tint = null;
+      let sizes = new Set(PRESELECTED);
+      let rendered = []; // [{ size, blob }]
+
+      function setStatus(text, kind = "") {
+        statusEl.className = `status ${kind}`;
+        statusEl.textContent = text;
+      }
+
+      /**
+       * An SVG is markup, and markup that a browser renders can carry script and
+       * remote references. It is checked before it is ever put in an <img>.
+       *
+       * An <img> is already a hard boundary — it runs no script and loads no
+       * subresources — so this is the second lock, not the only one. It exists
+       * because the same string is handed back to the user as a download, and
+       * because "we render arbitrary uploaded markup" should never be true
+       * without something having looked at it.
+       */
+      function checkSvg(text) {
+        const lower = text.toLowerCase();
+        for (const bad of ["<script", "<foreignobject", "javascript:", "<iframe", "<use", "<image", "<animate", "<set", "<handler"]) {
+          if (lower.includes(bad)) throw new Error(`That SVG contains ${bad.replace("<", "a <")} element, which is not safe to render.`);
+        }
+        const handler = text.match(/\son[a-z]+\s*=/i);
+        if (handler) throw new Error(`That SVG contains an inline event handler (${handler[0].trim().replace(/=$/, "")}).`);
+        if (/href\s*=\s*["']\s*(https?:)?\/\//i.test(text)) throw new Error("That SVG references an external file.");
+        if (!/<svg[\s>]/i.test(text)) throw new Error("That file is not an SVG.");
+      }
+
+      /** Load a file into `source`, measuring it so the aspect ratio is known. */
+      async function loadFile(file) {
+        if (!file) return;
+        if (file.size > MAX_BYTES) {
+          setStatus(`That file is ${(file.size / 1024 / 1024).toFixed(1)} MB; the limit is 5 MB.`, "error");
+          return;
+        }
+        const isSvg = file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
+        let url;
+        let markup = "";
+        try {
+          if (isSvg) {
+            markup = await file.text();
+            checkSvg(markup);
+            url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+          } else {
+            url = URL.createObjectURL(file);
+          }
+        } catch (err) {
+          setStatus(err.message, "error");
+          return;
+        }
+
+        const img = new Image();
+        img.decoding = "sync";
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error("That file could not be read as an image."));
+          img.src = url;
+        }).catch((err) => {
+          setStatus(err.message, "error");
+          URL.revokeObjectURL(url);
+          url = null;
+        });
+        if (!url) return;
+
+        if (source?.url) URL.revokeObjectURL(source.url);
+        // An SVG with no width/height attributes reports 0; treat it as square,
+        // since it is scalable and the output size is what matters.
+        const width = img.naturalWidth || 256;
+        const height = img.naturalHeight || 256;
+        // Only an SVG that defers its colour can be recoloured. currentColor is
+        // how it does that; anything else has the colour baked into the artwork,
+        // and forcing a new one would replace the drawing rather than tint it.
+        const recolourable = isSvg && /currentColor/i.test(markup);
+        source = { name: file.name.replace(/\.[^.]+$/, ""), url, width, height, isSvg, recolourable, markup };
+        tint = null;
+
+        const panel = document.getElementById("theme-panel");
+        const why = document.getElementById("theme-why");
+        panel.hidden = !recolourable;
+        why.hidden = recolourable;
+        if (!recolourable) {
+          why.textContent = isSvg
+            ? "This SVG sets its own colours, so a theme colour would replace the artwork rather than tint it. Colour matching is offered for SVGs drawn in currentColor — the form /api/svg serves."
+            : "A raster image carries its colours in the pixels, so there is nothing for a theme colour to redirect. Upload an SVG drawn in currentColor to recolour it.";
+        }
+
+        srcImg.src = url;
+        srcName.textContent = file.name;
+        srcInfo.textContent = isSvg
+          ? `SVG · scales without loss · ${(file.size / 1024).toFixed(1)} KB`
+          : `${width}×${height} · ${(file.size / 1024).toFixed(1)} KB`;
+        panelEl.hidden = false;
+        resultsEl.replaceChildren();
+        downloadAllEl.hidden = true;
+        rendered = [];
+        setStatus(
+          isSvg ? "" : "Enlarging a raster image past its own size will look soft.",
+          isSvg ? "" : ""
+        );
+      }
+
+      /* --- Match a website's theme colour ---------------------------------- */
+      // An SVG drawn in currentColor has one place to say what colour it is: the
+      // root element. Setting `color` there is enough, and it leaves the path
+      // data untouched, so nothing about the drawing is lost or rounded.
+      //
+      // A raster image and an SVG with its own fills are both excluded — see
+      // loadFile(). Applying a colour to those would mean either doing nothing or
+      // destroying the artwork, and silently doing nothing is worse.
+      function applyTint(hex) {
+        tint = hex;
+        if (!source?.recolourable) return;
+        const recoloured = source.markup.replace(
+          /<svg\b([^>]*)>/i,
+          (m, attrs) => `<svg${attrs.replace(/\s+color="[^"]*"/i, "")} color="${hex}">`
+        );
+        URL.revokeObjectURL(source.url);
+        source.url = URL.createObjectURL(new Blob([recoloured], { type: "image/svg+xml" }));
+        srcImg.src = source.url;
+        // Anything already rendered was drawn in the old colour.
+        resultsEl.replaceChildren();
+        downloadAllEl.hidden = true;
+        rendered = [];
+        setStatus("Colour applied. Press Resize to render at your sizes.", "ok");
+      }
+
+      const siteTheme = initSiteTheme({
+        applyColor: applyTint,
+        activeColor: () => tint,
+      });
+
+      /* --- Size chips ------------------------------------------------------ */
+      function renderSizes() {
+        sizesEl.replaceChildren();
+        for (const size of [...sizes].concat(DEFAULT_SIZES.filter((s) => !sizes.has(s))).sort((a, b) => a - b)) {
+          const on = sizes.has(size);
+          const label = document.createElement("label");
+          label.className = `size-chip${on ? " on" : ""}`;
+          const box = document.createElement("input");
+          box.type = "checkbox";
+          box.checked = on;
+          box.addEventListener("change", () => {
+            if (box.checked) sizes.add(size);
+            else sizes.delete(size);
+            renderSizes();
+          });
+          label.append(box, document.createTextNode(`${size}px`));
+          sizesEl.appendChild(label);
+        }
+      }
+      renderSizes();
+
+      document.getElementById("add-size").addEventListener("click", () => {
+        const input = document.getElementById("custom");
+        const value = Number(input.value);
+        if (!Number.isInteger(value) || value < 1 || value > 2048) {
+          setStatus("Enter a size between 1 and 2048.", "error");
+          return;
+        }
+        sizes.add(value);
+        input.value = "";
+        setStatus("");
+        renderSizes();
+      });
+
+      /* --- Rendering ------------------------------------------------------- */
+      /**
+       * Draw the source at one size, letterboxed so a non-square image keeps its
+       * proportions inside a square canvas. Icons are square by convention and a
+       * stretched logo is worse than a padded one.
+       */
+      function drawAt(size) {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingQuality = "high";
+        const scale = Math.min(size / source.width, size / source.height);
+        const w = source.width * scale;
+        const h = source.height * scale;
+        ctx.drawImage(srcImg, (size - w) / 2, (size - h) / 2, w, h);
+        return canvas;
+      }
+
+      document.getElementById("render").addEventListener("click", async () => {
+        if (!source) return;
+        if (sizes.size === 0) {
+          setStatus("Pick at least one size.", "error");
+          return;
+        }
+        resultsEl.replaceChildren();
+        rendered = [];
+        const ordered = [...sizes].sort((a, b) => a - b);
+        for (const size of ordered) {
+          const canvas = drawAt(size);
+          const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+          rendered.push({ size, blob });
+
+          const figure = document.createElement("div");
+          figure.className = "result";
+          // Shown at its real size up to 128px, so the preview is the artefact
+          // rather than a scaled picture of it.
+          const shown = drawAt(Math.min(size, 128));
+          shown.style.width = `${Math.min(size, 128)}px`;
+          shown.style.height = `${Math.min(size, 128)}px`;
+          const caption = document.createElement("div");
+          caption.textContent = `${size}px · ${(blob.size / 1024).toFixed(1)} KB`;
+          const save = document.createElement("button");
+          save.className = "btn";
+          save.type = "button";
+          save.textContent = "Save";
+          save.style.marginTop = "6px";
+          save.addEventListener("click", () => download(`${source.name}-${size}.png`, blob));
+          figure.append(shown, caption, save);
+          resultsEl.appendChild(figure);
+        }
+        downloadAllEl.hidden = rendered.length < 2;
+        setStatus(`${rendered.length} size${rendered.length === 1 ? "" : "s"} ready.`, "ok");
+      });
+
+      // No zip library is bundled for this: pulling one in for a handful of PNGs
+      // costs every visitor the download. The browser asks once per file.
+      downloadAllEl.addEventListener("click", () => {
+        for (const { size, blob } of rendered) download(`${source.name}-${size}.png`, blob);
+        showToast(`Saving ${rendered.length} files`);
+      });
+
+      /* --- Input ----------------------------------------------------------- */
+      dropEl.addEventListener("click", () => fileEl.click());
+      dropEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          fileEl.click();
+        }
+      });
+      fileEl.addEventListener("change", () => loadFile(fileEl.files[0]));
+      for (const type of ["dragenter", "dragover"]) {
+        dropEl.addEventListener(type, (e) => {
+          e.preventDefault();
+          dropEl.classList.add("over");
+        });
+      }
+      for (const type of ["dragleave", "drop"]) {
+        dropEl.addEventListener(type, () => dropEl.classList.remove("over"));
+      }
+      dropEl.addEventListener("drop", (e) => {
+        e.preventDefault();
+        loadFile(e.dataTransfer?.files?.[0]);
+      });
+
+      document.getElementById("clear").addEventListener("click", () => {
+        if (source?.url) URL.revokeObjectURL(source.url);
+        source = null;
+        tint = null;
+        fileEl.value = "";
+        panelEl.hidden = true;
+        document.getElementById("theme-panel").hidden = true;
+        document.getElementById("theme-why").hidden = true;
+        setStatus("");
+      });
+    </script>
+  </body>
+</html>

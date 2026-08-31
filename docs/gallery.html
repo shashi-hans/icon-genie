@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2315803d' viewBox='0 0 256 256'><path d='M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z'/></svg>"
+    />
+    <title>Icon Gallery</title>
+    <script>
+      // Set the theme before the first paint.
+      //
+      // app.css defines the light palette on bare :root and dark under
+      // [data-theme="dark"], and lib/theme.js is a module that runs after the
+      // document has painted. Between those two moments a dark-mode visitor saw
+      // a light page — a flash on every navigation between these pages.
+      //
+      // Deliberately a plain, parser-blocking script in the head, not a module:
+      // it has to run before CSS is applied, and it is small enough to inline on
+      // every page rather than cost a request that would itself delay the paint.
+      // Storage can throw (private mode, blocked cookies), so it fails to light.
+      try {
+        var savedTheme = localStorage.getItem("icon-genie.theme");
+        if (savedTheme === "dark" || savedTheme === "light") {
+          document.documentElement.setAttribute("data-theme", savedTheme);
+        }
+      } catch (e) {
+        /* no stored preference reachable; the light default stands */
+      }
+    </script>
+    <link rel="stylesheet" href="./app.css" />
+    <style>
+      .ctl input[type="range"] { width: 100px; accent-color: var(--accent); }
+      /* The group already draws the border and background, so the select inside
+         it carries neither — same treatment as the range and colour inputs. */
+      .ctl select {
+        background: none;
+        border: 0;
+        color: var(--fg);
+        font: inherit;
+        font-size: 14px;
+        padding: 0;
+        cursor: pointer;
+      }
+      .ctl select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .ctl input[type="color"] {
+        width: 34px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: none;
+        cursor: pointer;
+      }
+      .ctl .size-val { color: var(--fg); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+      /* The shared height is for the header bar; dialogs pack more buttons into
+         less room, so they opt back out. */
+      .modal-card .btn, .confirm .btn, .gen-tabs .btn { height: auto; padding: 8px 12px; }
+      .count { color: var(--muted); white-space: nowrap; }
+      #visitors::before { content: "·"; margin-right: 8px; opacity: 0.6; }
+      /* The site bar is sticky, so it keeps an edge against whatever scrolls
+         under it: the shared 1px border plus a short shadow. In dark mode the
+         shadow all but disappears and the border carries the separation. */
+      header {
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 5px 10px -8px rgba(0, 0, 0, 0.35);
+      }
+
+      main { padding: 20px; }
+      /* The heading for whatever the grid is currently showing, with the count
+         that used to sit in the controls row. */
+      .section-bar {
+        display: flex; align-items: baseline; gap: 12px;
+        flex-wrap: wrap; margin-bottom: 12px;
+      }
+      .section-bar h2 { margin: 0; font-size: 16px; color: var(--accent); }
+      .page-head { margin-bottom: 14px; }
+      /* The controls sit with the grid they act on rather than in the header, and
+         stay put above it while the page scrolls. */
+      .controls { margin-bottom: 16px; }
+
+      #grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        /* Rows keep their natural height. A grid's rows stretch by default, and
+           with only a few rows on screen that inflated every cell to share the
+           leftover height. Spare space belongs below the grid, not inside the
+           cells. */
+        align-content: start;
+        gap: 10px;
+      }
+      .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.05s;
+        text-align: center;
+      }
+      .cell:hover { border-color: var(--accent); }
+      .cell:active { transform: scale(0.97); }
+      .cell svg {
+        width: var(--preview-size);
+        height: var(--preview-size);
+        color: var(--preview-color);
+      }
+      .cell .name {
+        font-size: 12px;
+        color: var(--muted);
+        word-break: break-word;
+        line-height: 1.3;
+      }
+      .empty { padding: 40px 20px; color: var(--muted); }
+
+      /* --- Detail modal --------------------------------------------------- */
+      /* Every dialog on the page, so a new one is centred by default rather than
+         landing in the document flow. */
+      #modal, #gen-modal, #login-modal, #hist-modal, #contrib-gate {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+      }
+      .modal-card {
+        position: relative;
+        width: min(560px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .modal-close:hover { border-color: var(--accent); }
+      .modal-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+      }
+      .modal-preview svg {
+        width: 96px;
+        height: 96px;
+        color: var(--preview-color);
+      }
+      .modal-card h2 { margin: 0 0 2px; font-size: 18px; }
+      .modal-meta { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+      /* Credit line for a community icon. Sits above the weight tabs so it reads
+         as part of the icon's identity rather than as export detail. */
+      .modal-credit {
+        display: flex; align-items: center; gap: 8px;
+        margin: 0 0 14px; padding: 8px 10px;
+        border: 1px solid var(--border); border-left: 3px solid #3fb950;
+        border-radius: 8px; font-size: 14px;
+      }
+      .modal-credit[hidden] { display: none; }
+      .modal-credit .label { color: var(--muted); }
+      .modal-credit .value { font-weight: 600; word-break: break-word; }
+      .modal-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+      .modal-controls .ctl { height: 34px; }
+      .weight-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+      .weight-tabs button {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 6px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .weight-tabs button[aria-pressed="true"] {
+        border-color: var(--accent);
+        color: var(--fg);
+      }
+      .snippet {
+        margin: 0 0 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        overflow-x: auto;
+        font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--fg);
+        white-space: pre;
+      }
+      .export-row { display: flex; flex-wrap: wrap; gap: 8px; }
+      /* Admin controls on a community icon, shown only to a logged-in admin.
+         Server-side authorization is what actually protects these. */
+      .admin-actions {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--border);
+      }
+      .admin-actions[hidden] { display: none; }
+      .admin-actions .label {
+        font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+      }
+      .btn.danger { border-color: #6e2b28; color: #f85149; }
+      .btn.danger:hover { border-color: #f85149; }
+      /* Momentary "done" state on a button's own label. */
+      .btn.ok { color: var(--ok); }
+      .confirm {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin: 0 0 12px; padding: 8px 10px; border-radius: 8px;
+        border: 1px solid #b0892b; color: #e3b341; font-size: 12px;
+      }
+      .confirm[hidden] { display: none; }
+      .confirm input {
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 6px 9px; border-radius: 6px; font-size: 14px; width: 180px;
+      }
+
+
+      /* AI generate */
+      /* Wider than the icon-detail dialog: this one stacks a prompt, a source
+         picker, a paste box, six previews and two button rows, and the extra
+         width lets those sit side by side instead of scrolling. */
+      #gen-modal .modal-card { width: min(960px, 100%); }
+      .gen-row { display: flex; gap: 8px; margin: 12px 0; }
+      .gen-row input { flex: 1; }
+      .gen-status { color: var(--muted); min-height: 18px; margin-bottom: 8px; }
+      .gen-status.error { color: var(--bad); }
+      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 0 12px; }
+      .gen-weights figure { margin: 0; text-align: center; }
+      .gen-weights .gen-cell {
+        border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .gen-weights .gen-cell svg { width: 100%; height: auto; color: var(--preview-color); }
+      .gen-weights figcaption { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+      /* Generation source picker + per-source panels */
+      .gen-tabs { display: flex; gap: 6px; margin: 12px 0 10px; flex-wrap: wrap; }
+      .gen-tabs .btn[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
+      .gen-panel[hidden] { display: none; }
+      .gen-note { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 6px 0 8px; }
+      .gen-note strong { color: var(--fg); font-weight: 600; }
+      .gen-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+      .gen-fields input { width: 100%; }
+      .gen-fields .full { grid-column: 1 / -1; }
+      #gen-paste { width: 100%; min-height: 88px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .gen-remember { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 10px; cursor: pointer; }
+      .gen-remember input { margin-right: 6px; vertical-align: middle; }
+      .gen-remember span { display: block; margin: 2px 0 0 22px; opacity: 0.8; }
+
+      /* Identity + history */
+      /* Pinned to the header's top-right corner rather than sitting in the
+         controls row, where it wrapped onto a second line. The header is sticky,
+         so this stays in the corner as the grid scrolls. Items are baseline-
+         aligned on one row, so the badge lines up with the buttons beside it. */
+      .who-badge strong { color: var(--fg); font-weight: 600; margin-left: 4px; }
+      .who-badge.admin strong { color: var(--accent); }
+      .who-badge .caret { color: var(--muted); font-size: 10px; }
+      .who-badge[aria-expanded="true"] { border-color: var(--accent); }
+
+      .who-badge.admin { border-color: var(--accent); color: var(--accent); }
+      #pager {
+        display: flex; align-items: center; justify-content: center;
+        gap: 14px; padding: 2px 20px 28px;
+        color: var(--muted); font-size: 14px;
+      }
+      #pager[hidden] { display: none; }
+      #pager button:disabled { opacity: 0.4; cursor: default; }
+      #pager button:disabled:hover { border-color: var(--border); }
+      #load-note {
+        max-width: 900px; margin: 0 auto; padding: 0 20px 4px;
+        color: var(--muted); font-size: 12px;
+      }
+      .hist-list { display: grid; gap: 8px; margin: 12px 0; }
+      .hist-row {
+        display: flex; align-items: center; gap: 12px;
+        border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+      }
+      .hist-row svg { width: 28px; height: 28px; flex: none; color: var(--preview-color); }
+      .hist-name { font-weight: 600; }
+      .hist-meta { color: var(--muted); font-size: 12px; }
+      .hist-row .grow { flex: 1; min-width: 0; }
+      .tag { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
+      .tag.approved { border-color: #3fb950; color: #3fb950; }
+      .tag.rejected { border-color: #f85149; color: #f85149; }
+      .tag.pending { border-color: #e3b341; color: #e3b341; }
+      .login-fields { display: grid; gap: 8px; margin: 12px 0; }
+      /* Community icons: approved and shown, but not yet in the published package. */
+      .cell.contributed { position: relative; border-color: #2d6a4f; }
+      .cell.contributed:hover { border-color: #3fb950; }
+      .cell-tag {
+        position: absolute; top: 6px; right: 6px;
+        font-size: 9px; letter-spacing: 0.03em; text-transform: uppercase;
+        color: #3fb950; border: 1px solid #2d6a4f; border-radius: 999px; padding: 1px 5px;
+      }
+      .gen-steps { color: var(--muted); font-size: 12px; margin: 0 0 8px; padding-left: 18px; line-height: 1.55; }
+
+      /* Two columns once the dialog is wide enough: describing an icon on the
+         left, the result and its actions on the right. Stacks below 820px, where
+         side-by-side columns would be too narrow to read. */
+      .gen-body { display: grid; gap: 0 22px; align-items: start; }
+      @media (min-width: 820px) {
+        #gen-modal .modal-card .gen-body { grid-template-columns: 1fr 1fr; }
+      }
+      .gen-right[hidden] { display: none; }
+
+      /* The credit field and its label, now only inside the contribution gate. */
+      .contribute-label { color: var(--fg); font-size: 14px; }
+      .contribute-label span {
+        display: block; color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 2px;
+      }
+      /* "Match a website's theme colour", in both the detail and generate dialogs. */
+      .site-theme {
+        margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+      }
+      .site-theme > label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+      .site-theme-row { display: flex; gap: 8px; }
+      .site-theme-row input {
+        flex: 1; min-width: 0;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 8px 10px; border-radius: 8px; font-size: 14px;
+      }
+      .site-theme-row .btn { height: auto; flex: none; }
+      .site-theme-out {
+        margin: 10px 0 4px; font-size: 12px; color: var(--muted);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+      .site-theme-out:empty { display: none; }
+      .site-theme-out.error { color: var(--bad); }
+      .site-theme-out.ok { color: var(--ok); }
+      /* Spaced away from the row above and whatever follows the panel. The
+         swatch output between them collapses to nothing when empty, so this row
+         would otherwise sit flush against both. */
+      .site-theme-manual { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+      .site-theme-manual label { color: var(--muted); font-size: 12px; flex: none; }
+      .site-theme-manual input {
+        width: 96px; flex: none;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 7px 10px; border-radius: 8px; font-size: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .site-theme-manual .btn { height: auto; padding: 7px 12px; flex: none; }
+      /* The selection ring needs room, so the row carries the gap below the
+         swatches rather than the container clipping it. */
+      .swatch-label { color: var(--muted); font-size: 12px; flex: none; }
+      .swatch-row { display: inline-flex; gap: 10px; padding: 3px 0 5px; }
+      .swatch {
+        width: 22px; height: 22px; padding: 0;
+        border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+      }
+      .swatch:hover { border-color: var(--accent); }
+      /* Two rings: one in the page background to separate the marker from the
+         swatch's own colour, one in the foreground to be visible on any hue. */
+      .swatch.selected {
+        border-color: transparent;
+        box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
+      }
+      /* The contribution gate sits above the generate dialog it interrupts. */
+      #contrib-gate { z-index: 30; }
+      .gate-card { width: min(440px, 100%); }
+      .gate-card h3 { margin: 0 0 6px; font-size: 15px; }
+      .gate-note {
+        margin: 0 0 14px;
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .gate-card input {
+        width: 100%; margin: 6px 0 10px;
+        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+        padding: 9px 12px; border-radius: 8px; font-size: 14px;
+      }
+      .gate-card .btn { width: 100%; }
+    </style>
+  </head>
+  <body>
+    <!-- The header carries only the site bar that every page shares. The
+         gallery's own title and controls belong to the page, so they sit in the
+         body with the grid they act on. -->
+    <header data-site-header></header>
+
+    <main>
+      <div class="page-head">
+        <h1>Icon Gallery</h1>
+        <div class="tagline">Free icons for all your needs.</div>
+        <div class="sub">Click any icon to customize, copy a snippet, or download.</div>
+      </div>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Search icon from list of 8470 icons ..." autocomplete="off" />
+        <span class="ctl">
+          <label for="weight">weight</label>
+          <select id="weight" title="Preview weight">
+            <option value="regular">regular</option>
+          </select>
+        </span>
+        <span class="ctl">
+          <label for="size">size</label>
+          <input id="size" type="range" min="16" max="96" step="2" value="32" />
+          <span class="size-val" id="size-val">32</span>
+        </span>
+        <span class="ctl ctl-flush">
+          <label for="color">color</label>
+          <input id="color" type="color" value="#15803d" />
+          <button class="btn" id="color-reset" type="button" title="Use currentColor">reset</button>
+        </span>
+      </div>
+
+      <div class="section-bar">
+        <h2 id="section-title">Popular Icons</h2>
+        <span class="count" id="count"></span>
+        <span class="count" id="visitors" hidden></span>
+      </div>
+
+      <div id="load-note" hidden></div>
+      <div id="grid"><div class="empty">Loading icons…</div></div>
+      <nav id="pager" hidden aria-label="Icon pages">
+        <button class="btn" id="page-prev" type="button">← Prev</button>
+        <span id="page-status"></span>
+        <button class="btn" id="page-next" type="button">Next →</button>
+      </nav>
+    </main>
+
+    <footer>
+      <div class="footer-inner" data-site-footer-bar></div>
+    </footer>
+
+    <div id="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <button class="modal-close" type="button" data-close aria-label="Close">✕</button>
+        <div class="modal-preview" id="modal-preview"></div>
+        <h2 id="modal-title"></h2>
+        <div class="modal-meta" id="modal-meta"></div>
+        <div class="modal-credit" id="modal-credit" hidden></div>
+        <!-- Weight and size for this icon, chosen here rather than only in the
+             control bar: the dialog is where an export is decided. Size drives
+             the same value the bar does, so the two never disagree. -->
+        <div class="modal-controls">
+          <span class="ctl">
+            <label for="modal-weight">weight</label>
+            <select id="modal-weight"></select>
+          </span>
+          <span class="ctl">
+            <label for="modal-size">size</label>
+            <select id="modal-size"></select>
+          </span>
+        </div>
+        <!-- Recolour to a site's theme. The colour is global (--preview-color),
+             so the copy here and the one in the generate dialog drive the same
+             value and the same swatch in the header. -->
+        <div class="site-theme" data-site-theme>
+          <label>Match a website's theme colour</label>
+          <div class="site-theme-row">
+            <input type="url" data-site-url placeholder="icon-gallery.com" autocomplete="url" spellcheck="false" />
+            <button class="btn" type="button" data-site-go>Fetch theme colour</button>
+          </div>
+          <div class="site-theme-out" data-site-out></div>
+          <div class="site-theme-manual">
+            <label>or paste a colour</label>
+            <input type="text" data-hex-in maxlength="7" placeholder="#fc5846" spellcheck="false" />
+            <button class="btn" type="button" data-hex-go>Use</button>
+          </div>
+        </div>
+        <pre class="snippet"><code id="snippet-code"></code></pre>
+        <div class="admin-actions" id="modal-admin" hidden>
+          <span class="label">Admin</span>
+          <button class="btn" type="button" id="modal-rename-btn" data-adminact="rename">Change contributor</button>
+          <button class="btn danger" type="button" data-adminact="delete">Delete from gallery</button>
+        </div>
+        <div class="confirm" id="modal-rename" hidden>
+          <span>New contributor name:</span>
+          <input id="modal-rename-input" maxlength="20" />
+          <button class="btn" type="button" data-adminact="rename-save">Save name</button>
+          <button class="btn" type="button" data-adminact="cancel">Cancel</button>
+        </div>
+        <div class="confirm" id="modal-delete" hidden>
+          <span id="modal-delete-text"></span>
+          <button class="btn danger" type="button" data-adminact="delete-confirm">Delete for good</button>
+          <button class="btn" type="button" data-adminact="cancel">Cancel</button>
+        </div>
+        <div class="export-row">
+          <button class="btn" data-act="jsx">Copy JSX</button>
+          <button class="btn" data-act="import">Copy import</button>
+          <button class="btn" data-act="svg">Copy SVG</button>
+          <button class="btn" data-act="dl-svg">Download SVG</button>
+          <button class="btn" data-act="dl-png">Download PNG</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Contribution gate. Any copy or download of a generated icon opens this
+         first; the export runs only after the submission succeeds. Closing it, or
+         a submission the server refuses, leaves the export undone. Once an icon
+         has been contributed this never reappears for it. -->
+
+
+    <div id="hist-modal" hidden>
+      <div class="modal-backdrop" data-histclose></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hist-title">
+        <button class="modal-close" type="button" data-histclose aria-label="Close">✕</button>
+        <h2 id="hist-title">Your history</h2>
+        <div class="modal-meta" id="hist-meta">
+          Icons you generated or contributed, kept against a cookie on this browser. Clearing
+          cookies starts a new, empty history.
+        </div>
+        <div class="hist-list" id="hist-list"></div>
+        <div class="gen-status" id="hist-status"></div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script type="module">
+      // Same derivation the library and the build use, so a generated preview
+      // matches what the React component renders.
+      import { deriveWeightInner } from "./stroke-weights.js";
+      import { initSiteTheme } from "./lib/site-theme.js";
+      import { initHeader } from "./lib/header.js";
+      import { initFooter } from "./lib/footer.js";
+      import { initTheme, onThemeChange } from "./lib/theme.js";
+      import { api, showToast, download } from "./lib/api.js";
+
+      const grid = document.getElementById("grid");
+      const search = document.getElementById("search");
+      const countEl = document.getElementById("count");
+      const weightEl = document.getElementById("weight");
+      const pager = document.getElementById("pager");
+      const pageStatus = document.getElementById("page-status");
+      const prevBtn = document.getElementById("page-prev");
+      const nextBtn = document.getElementById("page-next");
+      const sizeEl = document.getElementById("size");
+      const sizeValEl = document.getElementById("size-val");
+      const colorEl = document.getElementById("color");
+      const colorResetEl = document.getElementById("color-reset");
+      const toast = document.getElementById("toast");
+      const root = document.documentElement;
+
+      // Modal elements.
+      const modal = document.getElementById("modal");
+      const modalPreview = document.getElementById("modal-preview");
+      const modalTitle = document.getElementById("modal-title");
+      const modalMeta = document.getElementById("modal-meta");
+      const modalCredit = document.getElementById("modal-credit");
+      const modalWeightSel = document.getElementById("modal-weight");
+      const modalSizeSel = document.getElementById("modal-size");
+      // The sizes the export dropdown offers. The control bar's slider is
+      // continuous; a dialog wants the sizes people actually ship.
+      const MODAL_SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128];
+      const snippetCode = document.getElementById("snippet-code");
+
+      const DEFAULT_SIZE = 24; // matches the library's default `size` prop
+      let icons = [];
+      let weights = ["regular"];
+      let currentWeight = "regular";
+      let currentSize = 32;
+      let currentColor = null; // null = currentColor (no explicit color prop)
+
+      // Modal state.
+      let modalIcon = null;
+      let modalWeight = "regular";
+
+      /* --- Theme ----------------------------------------------------------- */
+      // lib/theme.js owns the palette and the toggle in the shared header. The
+      // only local consequence is the colour swatch: a theme swap changes --fg,
+      // so an icon left on currentColor resolves to a different value.
+
+      /**
+       * Keep the swatch showing the colour the icons are actually drawn in.
+       *
+       * With no colour picked the icons render `currentColor`, which resolves to
+       * the theme's --fg — white in dark mode. The input's markup value was a
+       * fixed green, so the swatch claimed a colour nothing on the page was
+       * using. <input type="color"> accepts only #rrggbb, so a computed value in
+       * another notation goes through a canvas to get there.
+       */
+      function syncColorSwatch() {
+        const value = resolvedColor();
+        colorEl.value = /^#[0-9a-f]{6}$/i.test(value) ? value : toHex(value);
+      }
+
+      function toHex(color) {
+        const ctx = document.createElement("canvas").getContext("2d");
+        ctx.fillStyle = "#000000"; // stands if the value does not parse
+        ctx.fillStyle = color;
+        const parsed = ctx.fillStyle;
+        if (/^#[0-9a-f]{6}$/i.test(parsed)) return parsed;
+        const rgb = parsed.match(/\d+/g);
+        return rgb
+          ? "#" + rgb.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, "0")).join("")
+          : "#000000";
+      }
+
+      initTheme();
+      onThemeChange(() => {
+        if (!currentColor) syncColorSwatch();
+      });
+      // The swatch starts on whatever the theme resolves to, not on the value in
+      // the markup.
+      syncColorSwatch();
+
+      /* --- Snippet / SVG builders ----------------------------------------- */
+      // Resolve the color used for rendering: the picked hex, or the theme's
+      // foreground when the user is on currentColor (needed for PNG/standalone
+      // SVG, which can't inherit `currentColor`).
+      function resolvedColor() {
+        if (currentColor) return currentColor;
+        return getComputedStyle(root).getPropertyValue("--fg").trim() || "#e6edf3";
+      }
+
+      function buildJSX(icon, weight) {
+        const props = [];
+        if (weight && weight !== "regular") props.push(`weight="${weight}"`);
+        if (currentSize !== DEFAULT_SIZE) props.push(`size={${currentSize}}`);
+        if (currentColor) props.push(`color="${currentColor}"`);
+        const attrs = props.length ? " " + props.join(" ") : "";
+        return `<${icon.component}${attrs} />`;
+      }
+
+      function buildImport(icon) {
+        return `import { ${icon.component} } from "icon-genie";`;
+      }
+
+      // Standalone SVG markup. `forRaster` resolves currentColor to a concrete
+      // value so the string renders identically off the page (PNG export).
+      function buildSVG(icon, weight, forRaster) {
+        const markup = icon.weights[weight] || icon.weights.regular || "";
+        const fill = forRaster ? resolvedColor() : currentColor || "currentColor";
+        // `color` is set too so stroke-based (AI) icons, whose paths use
+        // stroke="currentColor", resolve to the same value as filled icons.
+        return (
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${currentSize}" ` +
+          `height="${currentSize}" fill="${fill}" color="${fill}" viewBox="0 0 256 256">` +
+          `${markup}</svg>`
+        );
+      }
+
+
+      function downloadSVG(icon, weight) {
+        const svg = buildSVG(icon, weight, true);
+        download(`${icon.name}-${weight}.svg`, new Blob([svg], { type: "image/svg+xml" }));
+        showToast(`Downloaded ${icon.name}.svg`);
+      }
+
+      function downloadPNG(icon, weight) {
+        // Render the standalone SVG to a canvas at 4× for a crisp raster.
+        const scale = 4;
+        const px = Math.max(currentSize, 64) * scale;
+        const svg = buildSVG(icon, weight, true);
+        const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = px;
+          canvas.height = px;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, px, px);
+          URL.revokeObjectURL(url);
+          canvas.toBlob((png) => {
+            if (!png) return showToast("PNG export failed");
+            download(`${icon.name}-${weight}.png`, png);
+            showToast(`Downloaded ${icon.name}.png`);
+          }, "image/png");
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          showToast("PNG export failed");
+        };
+        img.src = url;
+      }
+
+      /* --- Grid ------------------------------------------------------------ */
+      function render(list) {
+        if (!list.length) {
+          grid.innerHTML = '<div class="empty">No icons match your search.</div>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        for (const icon of list) {
+          const cell = document.createElement("div");
+          cell.className = icon.contributed ? "cell contributed" : "cell";
+          cell.title = icon.contributed
+            ? `${icon.component} — community icon, approved but not in the package yet`
+            : `Click for ${icon.component} options`;
+          const markup = markupFor(icon, currentWeight);
+          cell.innerHTML =
+            `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>` +
+            `<span class="name">${icon.name}</span>` +
+            (icon.contributed ? `<span class="cell-tag">new</span>` : "");
+          // The icon it stands for, so one listener on the grid can find it
+          // instead of one closure per cell.
+          cell.dataset.name = icon.name;
+          frag.appendChild(cell);
+        }
+        grid.replaceChildren(frag);
+      }
+
+      // Delegated: the grid outlives its cells, so one listener replaces the one
+      // per cell that used to be attached on every render.
+      grid.addEventListener("click", (e) => {
+        const cell = e.target.closest(".cell");
+        if (!cell) return;
+        const icon = icons.find((i) => i.name === cell.dataset.name);
+        if (icon) openModal(icon);
+      });
+
+      /* --- Paging ----------------------------------------------------------
+       * The catalogue is past 8,000 icons, so neither the whole list nor the
+       * whole search can come to the browser: the grid asks for the slice it can
+       * actually paint and the filter runs on the server. See
+       * server/routes/icons.js.
+       */
+      let pageOffset = 0;
+      let pageLimit = 120;
+      let pageTotal = 0;
+      let catalogueTotal = 0;
+      let currentQuery = "";
+      let weightsApplied = false;
+
+      /**
+       * How many icons fit the viewport, plus a screen of slack so a short scroll
+       * does not immediately need another request.
+       *
+       * Derived rather than fixed because the cell size is a user control: at
+       * size 16 a laptop screen holds several hundred cells, at 96 a few dozen.
+       */
+      const PAGE_SCREENS = 0.55;
+
+      function pageSize() {
+        const styles = getComputedStyle(grid);
+        const gap = parseFloat(styles.gap) || 10;
+        const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+        const minCol = 120; // matches grid-template-columns
+        const usable = Math.max(grid.clientWidth - padX, minCol);
+        const cols = Math.max(1, Math.floor((usable + gap) / (minCol + gap)));
+        // 16px padding top and bottom, the preview, its gap, and the name line.
+        const cellH = 32 + currentSize + 8 + 18;
+        // Fetch a fraction of a screenful rather than a whole one plus slack.
+        // Calibrated so 1920x993 asks for 84 cells; scaling the row count keeps
+        // that proportion at every other viewport and through the preview-size
+        // control, instead of pinning one number that is wrong everywhere else.
+        const rows = Math.max(1, Math.ceil((window.innerHeight / (cellH + gap)) * PAGE_SCREENS));
+        // The server caps at 400; asking for more would just be trimmed.
+        return Math.min(Math.max(cols * rows, 28), 400);
+      }
+
+      /** Re-draw the icons already in hand, for a weight or colour change. */
+      function renderCurrent() {
+        render(icons);
+      }
+
+      function renderPager() {
+        if (!pageTotal) {
+          countEl.textContent = currentQuery ? `No matches in ${catalogueTotal} icons` : "";
+          pageStatus.textContent = "";
+          pager.hidden = true;
+          return;
+        }
+        const from = pageOffset + 1;
+        const to = Math.min(pageOffset + icons.length, pageTotal);
+        const scope = currentQuery
+          ? `${pageTotal} match${pageTotal === 1 ? "" : "es"} of ${catalogueTotal}`
+          : `${pageTotal} icons`;
+        countEl.textContent = `${from}–${to} of ${scope}`;
+        pageStatus.textContent = `${from}–${to} of ${pageTotal}`;
+        prevBtn.disabled = pageOffset <= 0;
+        nextBtn.disabled = to >= pageTotal;
+        pager.hidden = pageTotal <= icons.length && pageOffset === 0;
+      }
+
+      let pageRequest = 0;
+
+      // The 50 icons that landing on the gallery shows before any search.
+      //
+      // There is no usage data to rank by: an icon record is {name, component,
+      // weights} and nothing counts copies, downloads or /api/svg hits. So this
+      // is a researched list of the icons that UI writing consistently calls
+      // universal — search, home, hamburger, gear, heart, cart and the rest —
+      // not a measured popularity order. Every name is verified to exist in the
+      // catalogue. Edit the array to change the set; nothing else depends on it.
+      //
+      // Searching still reaches all 8,470: the moment there is a query, this is
+      // out of the way and the server does the filtering.
+      const POPULAR = [
+        "magnifying-glass", "house", "list", "link", "x",
+        "check", "plus", "minus", "gear", "user",
+        "users", "heart", "star", "bell", "bookmark",
+        "chat-circle", "paper-plane", "thumbs-up", "eye", "shopping-cart",
+        "credit-card", "tag", "trash", "pencil", "copy",
+        "download", "upload", "share", "printer", "floppy-disk",
+        "funnel", "arrows-clockwise", "file", "folder", "image",
+        "camera", "play", "calendar", "clock", "envelope",
+        "phone", "lock", "shield-check", "info", "warning",
+        "question", "globe", "map-pin", "sign-out", "code",
+      ];
+
+      async function loadPage({ reset = false } = {}) {
+        if (reset) pageOffset = 0;
+        // No query means the popular set, fetched by name in one request rather
+        // than as a page of the alphabet. Paging is off in that mode: the set is
+        // the whole result.
+        if (!currentQuery) return loadPopular();
+        pageLimit = pageSize();
+        const params = new URLSearchParams({
+          offset: String(pageOffset),
+          limit: String(pageLimit),
+        });
+        params.set("q", currentQuery);
+
+        // Only the newest request may paint: typing fires several and they can
+        // come back out of order.
+        const ticket = ++pageRequest;
+        try {
+          const res = await api(`/api/icons?${params.toString()}`);
+          if (ticket !== pageRequest) return;
+          icons = res.icons || [];
+          pageTotal = res.total ?? icons.length;
+          catalogueTotal = res.catalogueTotal ?? pageTotal;
+          pageOffset = res.offset ?? pageOffset;
+          if (!weightsApplied) {
+            applyWeightOptions(res.weights);
+            weightsApplied = true;
+          }
+          sectionTitle.textContent = `Results for "${currentQuery}"`;
+          syncSearchPlaceholder(catalogueTotal);
+          if (!icons.length) {
+            grid.innerHTML = '<div class="empty">No icons match your search.</div>';
+          } else {
+            render(icons);
+          }
+          renderPager();
+          setLoadingNote("");
+        } catch (err) {
+          if (ticket !== pageRequest) return;
+          grid.innerHTML =
+            `<div class="empty">Could not load icons (${err.message}).<br/>` +
+            `The gallery needs the API: run <code>npm run dev</code>, ` +
+            `after <code>npm run build:icons</code>.</div>`;
+          countEl.textContent = "";
+          pager.hidden = true;
+        }
+      }
+
+      /**
+       * The default view: the 50 popular icons, in the order POPULAR lists them.
+       *
+       * They are spread through the catalogue alphabetically, so one paged
+       * request cannot return them. This asks for all of them by fetching the
+       * full summary list once and picking, which is a single request the server
+       * already serves for the weight selector.
+       */
+      /* --- Popular-set cache ------------------------------------------------ */
+      // The popular set costs 50 requests to assemble, because /api/icons pages
+      // alphabetically and these names are scattered through the catalogue. It is
+      // also the first thing every visitor sees. So it is stored once and read
+      // from storage on every later landing, with no request at all.
+      //
+      // What is stored is the drawing itself, about 78KB of path data — well
+      // inside the ~5MB a browser allows, but large enough to be worth the
+      // version stamp below rather than growing stale copies.
+      //
+      // Invalidation: a stamp for the shape of what is stored (bump SET_VERSION
+      // when POPULAR or the record shape changes) and a fourteen-day age limit.
+      // Nothing revalidates against the server, which is the point — the cost is
+      // that an icon redrawn upstream keeps its old artwork here until the entry
+      // ages out or the version moves.
+      const CACHE_KEY = "icon-genie.popular";
+      const SET_VERSION = 1;
+      const CACHE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+      /** The stored set, or null when absent, stale, corrupt or for another list. */
+      function readPopularCache() {
+        let raw;
+        try {
+          raw = localStorage.getItem(CACHE_KEY);
+        } catch {
+          return null; // storage blocked; behave as though nothing is cached
+        }
+        if (!raw) return null;
+        try {
+          const hit = JSON.parse(raw);
+          if (hit.version !== SET_VERSION) return null;
+          if (hit.names !== POPULAR.join(",")) return null;
+          if (!Array.isArray(hit.icons) || hit.icons.length === 0) return null;
+          if (!hit.storedAt || Date.now() - hit.storedAt > CACHE_MAX_AGE_MS) return null;
+          return hit;
+        } catch {
+          // A half-written or hand-edited entry: drop it rather than trust it.
+          try { localStorage.removeItem(CACHE_KEY); } catch {}
+          return null;
+        }
+      }
+
+      function writePopularCache(icons, total) {
+        try {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({
+              version: SET_VERSION,
+              names: POPULAR.join(","),
+              storedAt: Date.now(),
+              catalogueTotal: total,
+              icons,
+            })
+          );
+        } catch {
+          // Over quota or blocked. The page already has what it needs; the next
+          // landing simply fetches again.
+        }
+      }
+
+      const sectionTitle = document.getElementById("section-title");
+
+      /** Keep the placeholder's figure honest once the real total is known. */
+      function syncSearchPlaceholder(total) {
+        if (typeof total === "number" && total > 0) {
+          search.placeholder = `Search icon from list of ${total.toLocaleString()} icons ...`;
+        }
+      }
+
+      /** Paint a popular set, from wherever it came. */
+      function showPopular(list, total) {
+        icons = list;
+        pageTotal = list.length;
+        pageOffset = 0;
+        render(list);
+        sectionTitle.textContent = "Popular Icons";
+        countEl.textContent = `${list.length} of ${(total || 0).toLocaleString()}`;
+        syncSearchPlaceholder(total);
+        pager.hidden = true;
+        setLoadingNote("");
+      }
+
+      async function loadPopular() {
+        const ticket = ++pageRequest;
+
+        // Cached: paint and stop. No request is made at all.
+        const cached = readPopularCache();
+        if (cached) {
+          catalogueTotal = cached.catalogueTotal ?? 0;
+          if (!weightsApplied) {
+            applyWeightOptions(Object.keys(cached.icons[0].weights || {}));
+            weightsApplied = true;
+          }
+          showPopular(cached.icons, catalogueTotal);
+          return;
+        }
+
+        try {
+          const res = await api(`/api/icons?limit=400&offset=0`);
+          if (ticket !== pageRequest) return;
+          if (!weightsApplied) {
+            applyWeightOptions(res.weights);
+            weightsApplied = true;
+          }
+          catalogueTotal = res.catalogueTotal ?? res.total ?? 0;
+
+          // One request per name: /api/icons pages alphabetically, so the 50 are
+          // not reachable in a slice. They resolve in parallel and keep POPULAR's
+          // order, and a name that ever stops existing is skipped rather than
+          // rendering a hole.
+          const found = await Promise.all(
+            POPULAR.map((name) =>
+              api(`/api/icons?q=${encodeURIComponent(name)}&limit=400`)
+                .then((r) => (r.icons || []).find((i) => i.name === name) || null)
+                .catch(() => null)
+            )
+          );
+          if (ticket !== pageRequest) return;
+          const list = found.filter(Boolean);
+          showPopular(list, catalogueTotal);
+          // Stored only when the whole set resolved: a partial set would be
+          // served back as though it were complete.
+          if (list.length === POPULAR.length) writePopularCache(list, catalogueTotal);
+        } catch (err) {
+          if (ticket !== pageRequest) return;
+          grid.innerHTML =
+            `<div class="empty">Could not load icons (${err.message}).<br/>` +
+            `The gallery needs the API: run <code>npm run dev</code>, ` +
+            `after <code>npm run build:icons</code>.</div>`;
+          countEl.textContent = "";
+          pager.hidden = true;
+        }
+      }
+
+      let searchTimer = null;
+      function scheduleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          const next = search.value.trim().toLowerCase();
+          if (next === currentQuery) return;
+          currentQuery = next;
+          loadPage({ reset: true });
+        }, 220);
+      }
+
+      /**
+       * The markup for a weight, from whichever payload has arrived.
+       *
+       * The first response carries only `regular` as a flat field, so the grid can
+       * paint before the multi-megabyte full catalogue lands. Until it does, every
+       * weight falls back to regular rather than rendering an empty cell.
+       */
+      function markupFor(icon, weight) {
+        if (icon.weights) return icon.weights[weight] || icon.weights.regular || "";
+        return icon.regular || "";
+      }
+
+      /* --- Modal ----------------------------------------------------------- */
+      function refreshModal() {
+        if (!modalIcon) return;
+        const markup = markupFor(modalIcon, modalWeight);
+        modalPreview.innerHTML = `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${markup}</svg>`;
+        modalTitle.textContent = modalIcon.component;
+        const colorNote = currentColor ? currentColor : "currentColor";
+        modalMeta.textContent = `${modalIcon.name} · weight ${modalWeight} · ${currentSize}px · ${colorNote}`;
+
+        // The credit gets its own labelled line rather than being buried in the
+        // meta string. The name is set with textContent, never innerHTML: it is
+        // text a stranger supplied and must never be parsed as markup.
+        modalCredit.hidden = !modalIcon.contributed;
+        if (modalIcon.contributed) {
+          modalCredit.replaceChildren();
+          const label = document.createElement("span");
+          label.className = "label";
+          label.textContent = "Contributor :";
+          const value = document.createElement("span");
+          value.className = "value";
+          value.textContent = modalIcon.contributor || "Anonymous";
+          modalCredit.append(label, value);
+        }
+        snippetCode.textContent = modalIcon.contributed
+          ? buildSVG(modalIcon, modalWeight, false)
+          : buildJSX(modalIcon, modalWeight);
+        // Hide the two package-only actions for an icon the package lacks.
+        for (const btn of modal.querySelectorAll('[data-act="jsx"], [data-act="import"]')) {
+          btn.hidden = Boolean(modalIcon.contributed);
+        }
+        refreshModalAdmin();
+        modalWeightSel.value = modalWeight;
+      }
+
+      function openModal(icon) {
+        modalIcon = icon;
+        modalWeight = currentWeight;
+        // A page arrives with every weight, so nothing needs disabling. This used
+        // to wait on a second request for the full catalogue.
+        modalWeightSel.innerHTML = weights
+          .map((w) => `<option value="${w}">${w}</option>`)
+          .join("");
+        // The current size is offered even when it is not one of the presets, so
+        // opening the dialog never silently changes what is on screen.
+        const sizes = MODAL_SIZES.includes(currentSize)
+          ? MODAL_SIZES
+          : [...MODAL_SIZES, currentSize].sort((a, b) => a - b);
+        modalSizeSel.innerHTML = sizes
+          .map((n) => `<option value="${n}">${n}px</option>`)
+          .join("");
+        modalSizeSel.value = String(currentSize);
+        refreshModal();
+        modal.hidden = false;
+      }
+
+      function closeModal() {
+        modal.hidden = true;
+        modalIcon = null;
+      }
+
+      modalWeightSel.addEventListener("change", () => {
+        modalWeight = modalWeightSel.value;
+        refreshModal();
+      });
+
+      // Size is global — the grid, the snippets and the PNG export all read it —
+      // so choosing here moves the control bar's slider too rather than leaving
+      // the two showing different numbers.
+      modalSizeSel.addEventListener("change", () => {
+        currentSize = Number(modalSizeSel.value) || currentSize;
+        sizeEl.value = String(currentSize);
+        sizeValEl.textContent = String(currentSize);
+        root.style.setProperty("--preview-size", currentSize + "px");
+        refreshModal();
+      });
+
+      modal.addEventListener("click", (e) => {
+        if (e.target.dataset.close !== undefined) closeModal();
+        const act = e.target.dataset.act;
+        if (!act || !modalIcon) return;
+        if (act === "jsx") copy(buildJSX(modalIcon, modalWeight), "Copied JSX");
+        else if (act === "import") copy(buildImport(modalIcon), "Copied import");
+        else if (act === "svg") copy(buildSVG(modalIcon, modalWeight, false), "Copied SVG");
+        else if (act === "dl-svg") downloadSVG(modalIcon, modalWeight);
+        else if (act === "dl-png") downloadPNG(modalIcon, modalWeight);
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.hidden) closeModal();
+      });
+
+      /* --- Admin actions on a community icon -------------------------------- */
+      // Reachable from the gallery as well as the review page: once an icon is
+      // live, the gallery is where you notice a wrong credit or a bad drawing.
+      // Visibility here is presentation only — the API re-checks the admin
+      // session on every call, so a guest forcing these buttons visible gets 403.
+      const modalAdmin = document.getElementById("modal-admin");
+      const modalRenameBtn = document.getElementById("modal-rename-btn");
+      const modalRename = document.getElementById("modal-rename");
+      const modalRenameInput = document.getElementById("modal-rename-input");
+      const modalDelete = document.getElementById("modal-delete");
+      const modalDeleteText = document.getElementById("modal-delete-text");
+
+      function showModalConfirm(which) {
+        modalRename.hidden = which !== "rename";
+        modalDelete.hidden = which !== "delete";
+        if (which === "rename") modalRenameInput.focus();
+      }
+
+      // An admin can remove any icon, built ones included. Renaming a
+      // contributor only makes sense where there is a contributor.
+      function refreshModalAdmin() {
+        const admin = me.role === "admin" && Boolean(modalIcon);
+        const contributed = Boolean(modalIcon?.contributed && modalIcon?.submissionId);
+        modalAdmin.hidden = !admin;
+        modalRenameBtn.hidden = !contributed;
+        showModalConfirm(null);
+        if (!admin) return;
+        if (contributed) {
+          modalRenameInput.value = modalIcon.contributor === "Anonymous" ? "" : modalIcon.contributor;
+        }
+        modalDeleteText.textContent = contributed
+          ? `Remove "${modalIcon.name}" from the gallery? The contributor is not told. ` +
+            `The artwork stays in the repo and this can be undone.`
+          : `Remove "${modalIcon.name}" from the gallery? It is a built icon, so the ` +
+            `artwork stays in raw-svgs/ and in git, and this can be undone.`;
+      }
+
+      async function adminRename() {
+        const icon = modalIcon;
+        try {
+          const { submission } = await api(`/api/submissions/${encodeURIComponent(icon.submissionId)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ contributor: modalRenameInput.value }),
+          });
+          icon.contributor = submission.contributor;
+          showModalConfirm(null);
+          refreshModal();
+          showToast(`Credited to ${submission.contributor}`);
+        } catch (err) {
+          showToast(`Couldn't rename: ${err.message}`);
+        }
+      }
+
+      // Hides the icon rather than deleting artwork: one endpoint that works on
+      // built and contributed icons alike, and is reversible, which is what makes
+      // it usable for working through a long list of duplicates.
+      async function adminDelete() {
+        const icon = modalIcon;
+        try {
+          await api(`/api/icons/${encodeURIComponent(icon.name)}`, { method: "DELETE" });
+          closeModal();
+          // Refetch rather than splice: the icon left the catalogue, so the page
+          // is one short and the totals have moved.
+          await loadPage();
+          showToast(`Deleted ${icon.name}`);
+        } catch (err) {
+          showToast(`Couldn't delete: ${err.message}`);
+        }
+      }
+
+      modal.addEventListener("click", (e) => {
+        const act = e.target.closest("[data-adminact]")?.dataset.adminact;
+        if (!act || !modalIcon) return;
+        if (act === "rename") return showModalConfirm("rename");
+        if (act === "delete") return showModalConfirm("delete");
+        if (act === "cancel") return showModalConfirm(null);
+        if (act === "rename-save") return adminRename();
+        if (act === "delete-confirm") return adminDelete();
+      });
+
+      /* --- Control bar wiring --------------------------------------------- */
+      search.addEventListener("input", scheduleSearch);
+      weightEl.addEventListener("change", () => {
+        currentWeight = weightEl.value;
+        // A page carries every weight, so switching one is a re-draw, not a fetch.
+        renderCurrent();
+      });
+      prevBtn.addEventListener("click", () => {
+        pageOffset = Math.max(0, pageOffset - pageLimit);
+        loadPage().then(() => window.scrollTo({ top: 0 }));
+      });
+      nextBtn.addEventListener("click", () => {
+        // Step by the number of icons on screen, not by the limit pageSize() would
+        // compute now: a resize between the fetch and the click would otherwise
+        // move the boundary and skip a row.
+        pageOffset = pageOffset + icons.length;
+        loadPage().then(() => window.scrollTo({ top: 0 }));
+      });
+      // A resize changes how many cells fit. Only refetch when the count really
+      // moved, so dragging a window edge does not fire a request per pixel.
+      let resizeTimer = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (pageSize() > pageLimit) loadPage();
+        }, 250);
+      });
+      sizeEl.addEventListener("input", () => {
+        currentSize = Number(sizeEl.value);
+        sizeValEl.textContent = String(currentSize);
+        root.style.setProperty("--preview-size", currentSize + "px");
+        refreshModal();
+      });
+      colorEl.addEventListener("input", () => {
+        currentColor = colorEl.value;
+        root.style.setProperty("--preview-color", currentColor);
+        siteTheme.syncSelection();
+        refreshModal();
+      });
+      colorResetEl.addEventListener("click", () => {
+        currentColor = null;
+        root.style.setProperty("--preview-color", "var(--fg)");
+        syncColorSwatch();
+        siteTheme.syncSelection();
+        refreshModal();
+      });
+
+      /* --- Match a website's theme colour --------------------------------- */
+      // The panel itself lives in lib/site-theme.js; this is only what applying a
+      // colour means on this page — the shared preview variable, the swatch in
+      // the control bar, and the open detail dialog.
+      const siteTheme = initSiteTheme({
+        applyColor(hex) {
+          currentColor = hex;
+          root.style.setProperty("--preview-color", hex);
+          colorEl.value = hex;
+          refreshModal();
+        },
+        activeColor: () => currentColor,
+      });
+
+      /* --- Identity + history ---------------------------------------------- */
+      // The header owns the welcome title, the menu and logging out; lib/header.js
+      // builds the same one on every page. This page only needs the answer, so it
+      // can show admin actions on an icon and its own history dialog.
+      //
+      // The server owns identity regardless: every admin endpoint re-checks the
+      // session cookie, so a role read here is a label, never a permission.
+      let me = { role: "guest", title: "Guest" };
+      const histModal = document.getElementById("hist-modal");
+      const histList = document.getElementById("hist-list");
+      const histStatus = document.getElementById("hist-status");
+
+      async function openHistory() {
+        histModal.hidden = false;
+        histStatus.className = "gen-status";
+        histStatus.textContent = "Loading…";
+        histList.innerHTML = "";
+        try {
+          const { entries } = await api("/api/history");
+          histStatus.textContent = entries.length
+            ? ""
+            : "Nothing yet. Generate an icon and it shows up here.";
+          histList.innerHTML = entries.map(histRowHtml).join("");
+        } catch (err) {
+          histStatus.className = "gen-status error";
+          histStatus.textContent = `Couldn't load history: ${err.message}`;
+        }
+      }
+
+      function histRowHtml(entry) {
+        const inner = deriveWeightInner(entry.paths).regular;
+        const when = new Date(entry.createdAt).toLocaleString();
+        const status = entry.status
+          ? `<span class="tag ${entry.status}">${entry.status}</span>`
+          : `<span class="tag">${entry.kind}</span>`;
+        return (
+          `<div class="hist-row">` +
+          `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${inner}</svg>` +
+          `<span class="grow"><span class="hist-name">${entry.name}</span>` +
+          `<div class="hist-meta">${entry.kind} · ${when}</div></span>${status}</div>`
+        );
+      }
+
+      histModal.addEventListener("click", (e) => {
+        if (e.target.dataset.histclose !== undefined) histModal.hidden = true;
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !histModal.hidden) histModal.hidden = true;
+      });
+
+      initFooter();
+      initHeader({ current: "gallery", history: true, visit: true }).then((who) => {
+        me = who;
+        document.getElementById("hist-open")?.addEventListener("click", openHistory);
+        // An admin arriving mid-render should see the admin row on an icon that
+        // is already open.
+        refreshModal();
+      });
+
+      /* --- Loading the catalogue ------------------------------------------- */
+      // One request per page. /api/icons takes q, offset and limit and answers
+      // with that slice at every weight, so the weight selector and the detail
+      // dialog work as soon as the grid paints. Filtering is the server's job
+      // because the catalogue is far larger than a browser should hold.
+      function applyWeightOptions(list) {
+        if (!Array.isArray(list) || !list.length) return;
+        weights = list;
+        weightEl.innerHTML = weights
+          .map((w) => `<option value="${w}"${w === "regular" ? " selected" : ""}>${w}</option>`)
+          .join("");
+      }
+
+      function setLoadingNote(text) {
+        const el = document.getElementById("load-note");
+        el.textContent = text || "";
+        el.hidden = !text;
+      }
+
+      loadPage();
+    </script>
+  </body>
+</html>
