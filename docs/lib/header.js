@@ -55,7 +55,7 @@ export async function initHeader({ current, history = false, visit = false, home
   const bar = document.createElement("div");
   bar.className = "site-bar";
   bar.innerHTML = `
-    <a class="brand" href="./index.html">Icon Genie Gallery</a>
+    <a class="brand" href="./index.html">Icon Genie Gallery<span class="brand-mark" aria-hidden="true">🧞</span></a>
     <nav>
       ${home
         ? ""

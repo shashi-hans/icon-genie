@@ -95,6 +95,10 @@ h1 { margin: 0 0 2px; font-size: 18px; text-align: center; padding: 0 12px; colo
   color: var(--accent);
   margin-right: auto;
 }
+/* The genie sits after the wordmark, decoration only — hidden from screen
+   readers, which would otherwise read out "genie" as part of the site name.
+   Emoji carry their own colour, so it is exempt from the accent rule above. */
+.site-bar .brand .brand-mark { margin-left: 8px; }
 .site-bar nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .site-bar nav a { text-decoration: none; }
 /* The page you are on is named but not offered as somewhere to go. */
