@@ -99,7 +99,12 @@ async function gh(method, apiPath, body) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(`GitHub ${method} ${apiPath} -> ${res.status}: ${data.message || "error"}`);
+    // The status rides on the error rather than only in its text, so a caller can
+    // tell "no such file" from a fault without reading the message for digits an
+    // icon name could just as well supply.
+    const err = new Error(`GitHub ${method} ${apiPath} -> ${res.status}: ${data.message || "error"}`);
+    err.status = res.status;
+    throw err;
   }
   return data;
 }
@@ -203,7 +208,7 @@ export async function unpublishIcon({ name }) {
   } catch (err) {
     // A 404 means there was nothing published, which is a normal outcome for an
     // icon deleted before it was ever approved.
-    const missing = /404/.test(err.message);
+    const missing = err.status === 404;
     return {
       mode: missing ? "none" : "failed",
       filePath: iconFilePath(name),

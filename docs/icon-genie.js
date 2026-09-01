@@ -41,7 +41,7 @@ function load(name, weight) {
 }
 
 class IconGenie extends HTMLElement {
-  static observedAttributes = ["name", "weight", "size", "color"];
+  static observedAttributes = ["name", "weight", "size", "color", "label"];
 
   constructor() {
     super();

@@ -19,8 +19,12 @@ export default handler(async (req, res) => {
 
   if (req.method === "GET") {
     if (!requireAdmin(req, res)) return;
-    const url = new URL(req.url, "http://localhost");
-    const status = url.searchParams.get("status") ?? undefined;
+    // From req.query, the way every other route reads its parameters. Parsing
+    // req.url here worked only because the rewrite in vercel.json happens to
+    // carry the original query string through; req.query is what both entry
+    // points build deliberately.
+    const raw = req.query?.status;
+    const status = (Array.isArray(raw) ? raw[0] : raw) || undefined;
     if (status && !STATUSES.has(status)) {
       throw new HttpError(400, `Unknown status "${status}".`);
     }

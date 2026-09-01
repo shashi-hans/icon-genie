@@ -184,6 +184,9 @@ export function createSupabaseStore() {
       seed = new Map(readSeed().map((icon) => [icon.name, icon]));
       seedSorted = null;
       seedAt = at;
+      // A rebuild can turn a contributed icon into a built one, and the
+      // contributed set is filtered against exactly this map.
+      invalidateContributed();
     }
     return seed;
   }
@@ -204,14 +207,33 @@ export function createSupabaseStore() {
 
   const byName = (a, b) => a.name.localeCompare(b.name);
 
+  // The approved set is read on every catalogue build, and the catalogue is built
+  // by every /api/icons and /api/svg request — so without this the site's two
+  // busiest routes each paid a database round trip. Measured at 80ms against ~2ms
+  // of work once the rows are in hand, and /api/svg answers with a one-year
+  // immutable cache header, so it was querying for something it tells the browser
+  // never to ask for again.
+  //
+  // Same shape as the hidden set below: approving, un-approving, renaming or
+  // deleting clears it, so the instance that made the change serves it at once,
+  // and the TTL bounds how long another instance can be behind.
+  const CONTRIBUTED_TTL_MS = 15000;
+  /** @type {object[]|null} */
+  let contributedCache = null;
+  let contributedReadAt = 0;
+  const invalidateContributed = () => { contributedCache = null; };
+
   /** Approved submissions as catalogue entries, built icons excluded. */
   async function contributedIcons() {
+    if (contributedCache && Date.now() - contributedReadAt < CONTRIBUTED_TTL_MS) {
+      return contributedCache;
+    }
     const rows = await sb(
       "GET",
       "/submissions?status=eq.approved&select=id,name,contributor,paths&order=created_at.asc"
     );
     const built = seedMap();
-    return (rows ?? [])
+    contributedCache = (rows ?? [])
       .filter((row) => !built.has(row.name))
       .map((row) =>
         iconFromSubmission({
@@ -220,12 +242,16 @@ export function createSupabaseStore() {
           contributor: row.contributor,
           paths: row.paths ?? [],
         })
-      );
+      )
+      .sort(byName);
+    contributedReadAt = Date.now();
+    return contributedCache;
   }
 
   // Warned once per process rather than per request, which at one request per
   // page load would otherwise fill the log.
   let warnedNoHiddenTable = false;
+  let warnedNoVisitCounter = false;
 
   // The hidden set is read on every catalogue build, so it is cached. Hiding or
   // restoring clears it, which makes the change immediate on the instance that
@@ -292,9 +318,8 @@ export function createSupabaseStore() {
     // The usual case: nothing hidden and every contribution already built. Then
     // the answer is the cached array, with no copy, filter or sort at all.
     if (!hidden.size && !contributed.length) return built;
-    const merged = contributed.length
-      ? mergeByName(built, [...contributed].sort(byName))
-      : built;
+    // Both lists are already name-sorted, so this is a merge, not a re-sort.
+    const merged = contributed.length ? mergeByName(built, contributed) : built;
     return hidden.size ? merged.filter((icon) => !hidden.has(icon.name)) : merged;
   }
 
@@ -377,6 +402,8 @@ export function createSupabaseStore() {
         },
         prefer: "return=representation",
       });
+      // A status change is what puts an icon into the catalogue or takes it out.
+      invalidateContributed();
       return fromSubmissionRow(rows?.[0]) ?? null;
     },
 
@@ -386,11 +413,14 @@ export function createSupabaseStore() {
         body: { contributor },
         prefer: "return=representation",
       });
+      // The credit is served with the icon, so a cached entry carries the old one.
+      invalidateContributed();
       return fromSubmissionRow(rows?.[0]) ?? null;
     },
 
     async deleteSubmission(id) {
       const rows = await sb("DELETE", `/submissions?id=${eq(id)}`, { prefer: "return=representation" });
+      invalidateContributed();
       return fromSubmissionRow(rows?.[0]) ?? null;
     },
 
@@ -521,7 +551,24 @@ export function createSupabaseStore() {
         // migration into a site-wide 500.
         if (err?.status !== 404) throw err;
         console.warn("record_visit has no country argument; apply migration 0004");
-        result = await sb("POST", "/rpc/record_visit", { body });
+        try {
+          result = await sb("POST", "/rpc/record_visit", { body });
+        } catch (fallbackErr) {
+          // Neither signature exists, so the database is still on 0001. Same
+          // reasoning as above taken one migration further: /api/auth/me is what
+          // every page load asks who it is talking to, and losing login, history
+          // and the admin link to an uncounted visit is the wrong trade.
+          if (fallbackErr?.status !== 404) throw fallbackErr;
+          if (!warnedNoVisitCounter) {
+            warnedNoVisitCounter = true;
+            console.warn(
+              "supabase: no record_visit function — apply " +
+                "supabase/migrations/0002_visit_counter_and_retention.sql. " +
+                "Visits are not counted until then; everything else works."
+            );
+          }
+          result = null;
+        }
       }
       return {
         visitors: Number(result?.visitors ?? 0),

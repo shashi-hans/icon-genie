@@ -47,6 +47,7 @@
   ],
   "scripts": {
     "import:phosphor": "node scripts/import-phosphor.js",
+    "draft:gap-icons": "node scripts/draft-gap-icons.js",
     "build:icons": "node scripts/optimize-svgs.js && node scripts/generate-components.js && node scripts/generate-index.js && node scripts/build-gallery.js",
     "build": "tsup",
     "build:all": "npm run build:icons && npm run build",

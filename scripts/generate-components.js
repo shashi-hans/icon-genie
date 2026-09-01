@@ -31,8 +31,10 @@ import type { IconProps } from "../types";
 
 const D = ${JSON.stringify(paths)};
 
+// \`d\` is spread over, not under: IconProps inherits an optional \`d\` from
+// SVGProps, so passing one must not replace the icon's own drawing.
 export function ${componentName}(props: IconProps): React.ReactElement {
-  return <StrokeIcon d={D} {...props} />;
+  return <StrokeIcon {...props} d={D} />;
 }
 
 ${componentName}.displayName = "${componentName}";

@@ -15,6 +15,10 @@ import { dirname, join, resolve } from "node:path";
 // and the browser's is docs/stroke-weights.js; all three carry the same widths,
 // named in each file's header.
 import { deriveWeightInner } from "../../scripts/derive-weights.js";
+// One kebab-to-Pascal rule for Node, shared with the build, for the same reason:
+// the component name the API reports for an approved icon has to be the one the
+// build will actually emit for it.
+import { toPascalCase } from "../../scripts/utils.js";
 
 // server/lib -> server -> repo root
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -64,6 +68,19 @@ export function seedMtime() {
   }
 }
 
+/**
+ * One weight's inner SVG markup for one icon, whichever kind it is.
+ *
+ * A drawn icon carries its weights already; a stroke icon that is not carrying
+ * them is expanded from its centerline paths here. Falls back to regular for a
+ * weight the icon has nothing for, and to "" when it has nothing at all.
+ */
+export function innerFor(icon, weight) {
+  const weights = icon.weights ?? (icon.centerline ? deriveWeightInner(icon.centerline) : null);
+  if (!weights) return "";
+  return weights[weight] || weights.regular || "";
+}
+
 /** Strip an icon down to the regular weight for the first, fast payload. */
 export function toSummary(icon) {
   const entry = {
@@ -81,11 +98,28 @@ export function toSummary(icon) {
   return entry;
 }
 
-export { deriveWeightInner };
+export { deriveWeightInner, toPascalCase };
 
-// Cached because readSeed() parses several megabytes and isBuiltIcon sits on
-// the path of every contribution. Keyed on the catalogue's mtime so a rebuild is
-// picked up without restarting the process.
+/**
+ * Just the names of the built icons, without deriving any weights.
+ *
+ * readSeed() expands 4,053 centerline icons into their four weights, roughly
+ * 40MB of markup allocated and then dropped when the caller only wants to know
+ * which names exist.
+ */
+function readSeedNames() {
+  try {
+    const data = JSON.parse(readFileSync(SEED, "utf8"));
+    if (!Array.isArray(data.icons)) return [];
+    return data.icons.filter((icon) => !icon.contributed).map((icon) => icon.name);
+  } catch {
+    return [];
+  }
+}
+
+// Cached because readSeedNames() parses several megabytes and isBuiltIcon sits
+// on the path of every contribution. Keyed on the catalogue's mtime so a rebuild
+// is picked up without restarting the process.
 /** @type {Set<string>|null} */
 let builtNames = null;
 let builtNamesAt = -1;
@@ -101,7 +135,7 @@ let builtNamesAt = -1;
 export function isBuiltIcon(name) {
   const at = seedMtime();
   if (!builtNames || at !== builtNamesAt) {
-    builtNames = new Set(readSeed().filter((icon) => !icon.contributed).map((icon) => icon.name));
+    builtNames = new Set(readSeedNames());
     builtNamesAt = at;
   }
   return builtNames.has(name);
@@ -119,14 +153,4 @@ export function iconFromSubmission(submission) {
     centerline: submission.paths,
     weights: deriveWeightInner(submission.paths),
   };
-}
-
-/** "airplane-in-flight" -> "AirplaneInFlight", guarding a leading digit. */
-export function toPascalCase(name) {
-  const pascal = String(name)
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  return /^[0-9]/.test(pascal) ? `Icon${pascal}` : pascal || "Icon";
 }

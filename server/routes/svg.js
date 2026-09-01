@@ -13,7 +13,7 @@
 // colour. Callers that want a fixed colour pass ?color=.
 import { handler, methodIs, HttpError } from "../lib/http.js";
 import { getStore } from "../lib/store.js";
-import { WEIGHTS } from "../lib/icons.js";
+import { WEIGHTS, innerFor } from "../lib/icons.js";
 
 // A year: the artwork behind a given name and weight does not change without a
 // rebuild, and a rebuild is a deploy.
@@ -21,19 +21,22 @@ const CACHE = "public, max-age=31536000, immutable";
 const COLOR_RE = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]{3,20}$|^rgba?\([\d\s.,%]+\)$/;
 
 /**
- * Split "heart-fill.svg" into a name and a weight.
+ * Split "heart-fill.svg" into an icon and a weight, against a catalogue already
+ * in hand.
  *
  * An icon may itself end in something that looks like a weight — "light-bulb-off"
  * next to a "fill" weight, or a real icon called "cloud-fill" — so a name that
  * exists as-is always wins over the suffix reading.
  */
-async function resolve(store, file) {
+function resolve(icons, file) {
   const stem = file.replace(/\.svg$/i, "");
-  if (await store.hasIcon(stem)) return { name: stem, weight: "regular" };
+  const exact = icons.find((icon) => icon.name === stem);
+  if (exact) return { icon: exact, weight: "regular" };
   for (const weight of WEIGHTS) {
     if (!stem.endsWith(`-${weight}`)) continue;
     const name = stem.slice(0, -(weight.length + 1));
-    if (await store.hasIcon(name)) return { name, weight };
+    const hit = icons.find((icon) => icon.name === name);
+    if (hit) return { icon: hit, weight };
   }
   return null;
 }
@@ -41,33 +44,41 @@ async function resolve(store, file) {
 export default handler(async (req, res) => {
   if (!methodIs(req, res, "GET")) return;
 
-  const store = getStore();
-  const file = String(req.query?.file ?? "");
-  const hit = await resolve(store, file);
-  if (!hit) throw new HttpError(404, "No such icon.");
-
   const asked = String(req.query?.weight ?? "").trim();
   if (asked && !WEIGHTS.includes(asked)) {
     throw new HttpError(400, `Unknown weight "${asked}". Use ${WEIGHTS.join(", ")}.`);
   }
-  const weight = asked || hit.weight;
-
-  // Through the catalogue so a hidden icon is not reachable by direct link.
-  const icon = (await store.listIcons()).find((i) => i.name === hit.name);
-  if (!icon) throw new HttpError(404, "No such icon.");
-
-  const inner = icon.weights?.[weight] ?? icon.weights?.regular ?? "";
   const color = String(req.query?.color ?? "").trim();
   if (color && !COLOR_RE.test(color)) {
     throw new HttpError(400, "Unrecognised colour.");
   }
+
+  // One catalogue read answers both the lookup and the markup. It is the
+  // catalogue rather than a membership check so a hidden icon is not reachable
+  // by direct link, and reading it once costs one query instead of the five a
+  // suffix search used to make.
+  const hit = resolve(await getStore().listIcons(), String(req.query?.file ?? ""));
+  if (!hit) throw new HttpError(404, "No such icon.");
+
+  const weight = asked || hit.weight;
+  // Derived here for this one icon when it is a stroke icon, rather than for all
+  // 4,053 of them when the catalogue loads.
+  const inner = innerFor(hit.icon, weight);
   const fill = color || "currentColor";
+  // `color` as well as `fill`, because the two kinds of icon take their paint
+  // from different places. A drawn icon's paths carry no paint attribute and
+  // inherit `fill`; a stroke-derived one paints with stroke="currentColor" and
+  // fill="currentColor" per path (scripts/derive-weights.js), which ignores the
+  // wrapper's fill entirely. Setting the CSS color property is what makes
+  // ?color= reach those, and omitting it when no colour was asked for leaves an
+  // inherited one alone.
+  const colorAttr = color ? ` color="${color}"` : "";
 
   const size = Number.parseInt(String(req.query?.size ?? ""), 10);
   const dims = Number.isFinite(size) && size > 0 && size <= 1024 ? ` width="${size}" height="${size}"` : "";
 
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"${dims} fill="${fill}">${inner}</svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"${dims} fill="${fill}"${colorAttr}>${inner}</svg>`;
 
   res.statusCode = 200;
   res.setHeader("content-type", "image/svg+xml; charset=utf-8");

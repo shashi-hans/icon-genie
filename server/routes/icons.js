@@ -32,13 +32,27 @@ function intParam(value, fallback, min, max) {
   return Math.min(Math.max(n, min), max);
 }
 
+// Folded component names, memoised per icon. Every keystroke searches the whole
+// catalogue, and lowercasing 8,468 names per request was most of what the filter
+// cost. A WeakMap rather than a field on the icon: these objects are serialised
+// straight into the response, so anything added to them would ship to the client,
+// and entries here are collected with the catalogue they came from.
+const folded = new WeakMap();
+
+function foldedComponent(icon) {
+  let value = folded.get(icon);
+  if (value === undefined) {
+    value = icon.component.toLowerCase();
+    folded.set(icon, value);
+  }
+  return value;
+}
+
 /** Substring match on the icon name and its component name, case-insensitive. */
 function search(icons, q) {
   if (!q) return icons;
   // Names are kebab-case already, so only the component name needs folding.
-  return icons.filter(
-    (icon) => icon.name.includes(q) || icon.component.toLowerCase().includes(q)
-  );
+  return icons.filter((icon) => icon.name.includes(q) || foldedComponent(icon).includes(q));
 }
 
 async function page(req, res) {
@@ -52,9 +66,10 @@ async function page(req, res) {
   const all = await getStore().listIcons();
   const matched = search(all, q);
 
-  // Clamped to the result count so an offset past the end returns the last page
-  // rather than an empty grid the user has to page back out of.
-  const maxOffset = Math.max(0, matched.length - 1);
+  // Clamped to the start of the last full page so an offset past the end returns
+  // that page, rather than an empty grid the user has to page back out of or the
+  // single trailing icon a clamp to the result count would give.
+  const maxOffset = Math.max(0, matched.length - limit);
   const offset = Math.min(intParam(query.offset, 0, 0, Number.MAX_SAFE_INTEGER), maxOffset);
 
   return json(res, 200, {
