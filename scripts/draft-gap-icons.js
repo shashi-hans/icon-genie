@@ -10,12 +10,20 @@
 // Output goes to ./raw-svgs/<icon>/<icon>-<weight>.svg, matching the layout the
 // build pipeline (optimize -> generate-components -> generate-index) expects.
 //
-//   node scripts/draft-gap-icons.js
+//   npm run draft:gap-icons
 import fs from "node:fs";
 import path from "node:path";
 import { RAW_SVGS_DIR, SOURCE_WEIGHTS as WEIGHTS } from "./utils.js";
 
-const SW = { thin: 8, light: 12, regular: 16, bold: 24, fill: 16, duotone: 16 };
+// Phosphor's own per-weight stroke widths, used to draw filled outlines that sit
+// beside the Phosphor sets without looking lighter or heavier than them.
+//
+// Not the same thing as STROKE_WIDTHS in scripts/derive-weights.js: those are the
+// two widths a centerline icon is stroked at to derive its weights at render
+// time, and they have to match src/strokeWeights.ts and docs/stroke-weights.js.
+// These are drawing input for artwork that ships as six finished files, so
+// nothing downstream reads them and they are free to differ.
+const OUTLINE_WIDTHS = { thin: 8, light: 12, regular: 16, bold: 24, fill: 16, duotone: 16 };
 
 // ---- number / path helpers ------------------------------------------------
 const n = (v) => {
@@ -406,16 +414,16 @@ let written = 0;
 for (const [name, shapes] of Object.entries(ICONS)) {
   const dir = path.join(RAW_SVGS_DIR, name);
   fs.mkdirSync(dir, { recursive: true });
-  const regularInner = `<path d="${renderShapes(shapes, SW.regular, false)}"/>`;
+  const regularInner = `<path d="${renderShapes(shapes, OUTLINE_WIDTHS.regular, false)}"/>`;
   for (const weight of WEIGHTS) {
     let inner;
     if (weight === "fill") {
-      inner = `<path d="${renderShapes(shapes, SW.regular, true)}"/>`;
+      inner = `<path d="${renderShapes(shapes, OUTLINE_WIDTHS.regular, true)}"/>`;
     } else if (weight === "duotone") {
-      const tint = renderShapes(shapes, SW.regular, true);
+      const tint = renderShapes(shapes, OUTLINE_WIDTHS.regular, true);
       inner = `<path d="${tint}" opacity=".2"/>` + regularInner;
     } else {
-      inner = `<path d="${renderShapes(shapes, SW[weight], false)}"/>`;
+      inner = `<path d="${renderShapes(shapes, OUTLINE_WIDTHS[weight], false)}"/>`;
     }
     fs.writeFileSync(path.join(dir, `${name}-${weight}.svg`), svg(inner));
     written++;
