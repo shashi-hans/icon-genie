@@ -27,12 +27,14 @@ export const SOURCE_WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duot
 // "airplane-in-flight" -> "AirplaneInFlight". Guards against a leading digit
 // (not valid as the start of a JS identifier) by prefixing "Icon".
 export function toPascalCase(name) {
-  const pascal = name
+  const pascal = String(name)
     .split(/[^a-zA-Z0-9]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
-  return /^[0-9]/.test(pascal) ? `Icon${pascal}` : pascal;
+  // A name with nothing usable in it would otherwise produce an empty component
+  // name, which is not a JS identifier.
+  return /^[0-9]/.test(pascal) ? `Icon${pascal}` : pascal || "Icon";
 }
 
 // Pull the inner markup out of an <svg>…</svg> string. Phosphor SVGs contain

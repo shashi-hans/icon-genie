@@ -297,7 +297,9 @@ npm version patch && git push --follow-tags
 
 Or manually: `npm run build:all && npm publish --access public`.
 
-The workflow re-imports Phosphor from a fresh clone on every release, which is where a name can collide: Phosphor keeps growing, and it may ship a name a contributed icon already holds. **The contributed icon keeps the name** — it is already an export of a published package, so moving it would change what `import { Cup }` draws for everyone who has that line. The Phosphor arrival is imported as `cup-phosphor` instead, a new export that breaks nothing, and `import-phosphor.js` prints every rename it made. Sharing one directory is not an option: `generate-components.js` reads a centerline file in preference to the weight files beside it, so the Phosphor drawing would be imported and then silently ignored — which it now warns about, wherever such a pair comes from.
+The workflow builds from the committed `raw-svgs/`, so the tarball is whatever `npm run build:icons` produces locally. Taking a Phosphor update is a deliberate `npm run import:phosphor <assets>` and a commit, not something a release does on its own.
+
+That import is where a name can collide: Phosphor keeps growing, and it may ship a name that a contributed icon or one of the other seven sets already holds. **The icon already in `raw-svgs/` keeps the name** — it is already an export of a published package, so moving it would change what `import { Cup }` draws for everyone who has that line. The Phosphor arrival is imported as `cup-phosphor` instead, a new export that breaks nothing, and `import-phosphor.js` prints every rename it made. Sharing one directory is not an option in either direction: `generate-components.js` reads a centerline file in preference to the weight files beside it, so a Phosphor drawing landing next to one would be imported and then silently ignored — which it now warns about — and landing on another set's weight files it would replace them. A directory counts as Phosphor's own only when it holds exactly the files the import would write, which is what keeps a re-import idempotent while leaving the other sets alone.
 
 ## License
 
