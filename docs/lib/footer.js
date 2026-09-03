@@ -3,8 +3,7 @@
 //
 // Built here rather than repeated in five HTML files so the year, the credit and
 // the count cannot drift apart between pages. A page supplies an empty
-// [data-site-footer-bar] and optionally its own content above it — the landing
-// page keeps its link columns and gets this as the bottom rule.
+// [data-site-footer-bar]; anything above it is that page's own.
 //
 // The count comes from the same /api/auth/me call the header already makes, so
 // this adds no request. It stays hidden when there is no backend, rather than
