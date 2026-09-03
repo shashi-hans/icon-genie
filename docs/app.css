@@ -11,7 +11,10 @@
 /* 26px is the largest type in the project: the header brand sits at it, and
    nothing — including the landing page headline — goes above it. */
 :root {
-  --bg: #ffffff;
+  /* A green-tinted page rather than plain white, keyed to the accent. Light
+     enough that --fg still sits far above the contrast floor on it. Only the
+     light theme is tinted; the dark palette below is unchanged. */
+  --bg: #f1f8f3;
   --panel: #f6f8fa;
   --border: #d0d7de;
   --fg: #1f2328;
@@ -64,6 +67,15 @@ body > main { flex: 1 0 auto; }
 header {
   position: sticky;
   top: 0;
+  /* Reserve the bar's height before it exists.
+   *
+   * The bar is written into each page by scripts/build-header.js, so normally it
+   * is already here. A page that has not been generated falls back to building it
+   * in lib/header.js, and without this the element would be only as tall as its
+   * own padding until that ran — a ~39px jump the moment the bar landed.
+   * 16px + 16px padding, a 39px brand line box (26px at the body's 1.5), and the
+   * 1px border, counted together because box-sizing is border-box. */
+  min-height: 72px;
   /* Positioning context for a pinned identity group. */
   isolation: isolate;
   background: var(--bg);
@@ -156,7 +168,20 @@ footer {
 footer a { color: var(--muted); }
 footer .spacer { margin-left: auto; }
 
+/* --- Feature page titles ------------------------------------------------- */
+/* A page's own icon beside its heading. The same four icons the homepage cards
+   use, so a page and the card that links to it read as the same thing. Sized in
+   em so it tracks the heading at whatever size that page sets, and it takes the
+   accent colour through fill="currentColor". */
+.page-heading { display: flex; align-items: center; gap: 8px; }
+.page-heading .title-icon { width: 1.1em; height: 1.1em; flex: none; }
+
 /* --- Controls ----------------------------------------------------------- */
+/* Pushes whatever follows it to the far end of a flex row. Used by the admin
+   page's bar and the theme page's picker, so it belongs here rather than in
+   whichever page happened to need it first. */
+.grow { flex: 1; }
+
 .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 input[type="search"] {
   flex: 1;

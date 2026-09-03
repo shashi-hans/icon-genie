@@ -1,4 +1,4 @@
-// GET /api/auth/me -> { role, title, guestId, loginConfigured, visits }
+// GET /api/auth/me -> { role, title, guestId, visits }
 //
 // What the page calls on load to decide whether to show "Admin" or "Guest".
 // Visiting this route is also what mints a guest id, so history has something to
@@ -28,8 +28,6 @@ export default handler(async (req, res) => {
     // The page never needs the admin's identity, only the guest key it files
     // history under, so that is all it gets.
     guestId,
-    // Lets the UI say "login isn't set up" instead of "wrong password".
-    loginConfigured: Boolean(process.env.ADMIN_PASSWORD),
     visits,
   });
 });

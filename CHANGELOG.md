@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.4.0
+
+No change to the library. Every export keeps its name, signature and artwork, and
+`dist/` is byte-identical to 0.3.0 — upgrading is safe and changes nothing in your
+code. The work in this release is the gallery site and the API behind it.
+
+**A server-side request forgery in `/api/theme` is fixed.** The endpoint checks
+`robots.txt` before reading a site, and that check called `fetch` directly rather
+than through the guard the page fetch uses. Every protection in
+`server/lib/fetch-page.js` — the bare-IP refusal, the DNS lookup, the private-range
+block — was skipped for it, so pointing the endpoint at a loopback or link-local
+address still reached it. The response was refused, but the request had been made,
+and whether the host answered changed the error the caller saw. Anyone running
+this API should take this release.
+
+**A new Icon Theme page** reads a site's colour and carries it to the gallery, the
+generator and the resizer. The picker used to be repeated on all three.
+
+**Faster.** Two N+1 query loops are gone: the review queue made one database round
+trip per row, and history one per entry. The header is written into each page at
+build time rather than assembled by JavaScript, so it paints with the body.
+
+Also fixed: the resizer rendering from a revoked blob URL when a colour was
+stored, gallery page views never being counted, the identity badge still reading
+"Admin" after logging out, 4-digit CSS hex colours being dropped from a palette,
+and `<icon-genie>` settling on a stale weight after a quick switch.
+
 ## 0.3.0
 
 Breaking. The package is renamed; the API is unchanged.

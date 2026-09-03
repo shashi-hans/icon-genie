@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='%2315803d' viewBox='0 0 256 256'><path d='M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z'/></svg>"
+    />
+    <title>Icon Colour — Icon Genie</title>
+    <script>
+      // Set the theme before the first paint.
+      //
+      // app.css defines the light palette on bare :root and dark under
+      // [data-theme="dark"], and lib/theme.js is a module that runs after the
+      // document has painted. Between those two moments a dark-mode visitor saw
+      // a light page — a flash on every navigation between these pages.
+      //
+      // Deliberately a plain, parser-blocking script in the head, not a module:
+      // it has to run before CSS is applied, and it is small enough to inline on
+      // every page rather than cost a request that would itself delay the paint.
+      // Storage can throw (private mode, blocked cookies), so it fails to light.
+      try {
+        var savedTheme = localStorage.getItem("icon-genie.theme");
+        if (savedTheme === "dark" || savedTheme === "light") {
+          document.documentElement.setAttribute("data-theme", savedTheme);
+        }
+      } catch (e) {
+        /* no stored preference reachable; the light default stands */
+      }
+    </script>
+    <link rel="stylesheet" href="./app.css" />
+    <link rel="modulepreload" href="./lib/header.js" />
+    <link rel="modulepreload" href="./lib/api.js" />
+    <link rel="modulepreload" href="./lib/theme.js" />
+    <style>
+      main { width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
+      h2 { margin: 0 0 6px; font-size: 20px; color: var(--accent); }
+      .note { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--panel);
+        padding: 18px 20px;
+      }
+
+      /* The picker. These rules used to sit in gallery.html, generator.html and
+         resizer.html, identically in all three; the picker lives on one page
+         now, so they live in one place with it. */
+      .site-theme > label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+      .site-theme-row { display: flex; gap: 8px; }
+      .site-theme-row input {
+        flex: 1; min-width: 0;
+        background: var(--bg); border: 1px solid var(--border); color: var(--fg);
+        padding: 8px 10px; border-radius: 8px; font-size: 14px;
+      }
+      .site-theme-row .btn { height: auto; flex: none; }
+      .site-theme-out {
+        margin: 10px 0 4px; font-size: 12px; color: var(--muted);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+      .site-theme-out:empty { display: none; }
+      .site-theme-out.error { color: var(--bad); }
+      .site-theme-out.ok { color: var(--ok); }
+      .site-theme-manual { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
+      .site-theme-manual label { color: var(--muted); font-size: 12px; flex: none; }
+      .site-theme-manual input {
+        width: 96px; flex: none;
+        background: var(--bg); border: 1px solid var(--border); color: var(--fg);
+        padding: 7px 10px; border-radius: 8px; font-size: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .site-theme-manual .btn { height: auto; padding: 7px 12px; flex: none; }
+      .swatch-label { color: var(--muted); font-size: 12px; flex: none; }
+      /* The selection ring needs room, so the row carries the gap below the
+         swatches rather than the container clipping it. */
+      .swatch-row { display: inline-flex; gap: 10px; padding: 3px 0 5px; }
+      .swatch {
+        width: 22px; height: 22px; padding: 0;
+        border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+      }
+      .swatch:hover { border-color: var(--accent); }
+      /* Two rings: one in the page background to separate the marker from the
+         swatch's own colour, one in the foreground to be visible on any hue. */
+      .swatch.selected {
+        border-color: transparent;
+        box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--fg);
+      }
+
+      /* Real icons in the chosen colour, so the choice is judged on icons rather
+         than on a 22px chip. */
+      .preview { margin-top: 22px; }
+      .preview-strip {
+        display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
+        padding: 18px; border: 1px solid var(--border); border-radius: 12px;
+        background: var(--panel);
+        color: var(--preview-color);
+      }
+      .preview-strip svg { width: 40px; height: 40px; flex: none; }
+      .preview-empty { color: var(--muted); font-size: 13px; }
+
+      .onward { margin-top: 24px; }
+      .onward[hidden] { display: none; }
+      .onward-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+      .onward .btn { text-decoration: none; }
+
+      .current {
+        display: inline-flex; align-items: center; gap: 8px;
+        font-size: 13px; color: var(--muted);
+      }
+      .current .chip {
+        width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border);
+      }
+      .current code { color: var(--fg); }
+    </style>
+  </head>
+  <body>
+    <header data-site-header>
+      <!-- Generated by scripts/build-header.js from docs/lib/header-markup.js.
+           Do not edit here; edit the template and rebuild. -->
+      <div class="site-bar">
+        <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
+        <nav>
+          <a class="btn" href="./gallery.html">Icon Gallery</a>
+          <a class="btn" href="./generator.html">Icon Generator</a>
+          <a class="btn" href="./resizer.html">Icon Resizer</a>
+          <a class="btn" href="./theme.html" aria-current="page">Icon Theme</a>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="who">
+            <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
+              <span id="who-label">Welcome</span>
+              <span class="caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="who-menu" id="who-menu" role="menu" hidden>
+              
+              <a class="who-item" id="admin-link" href="./admin.html" role="menuitem" hidden>Icon approval</a>
+              <a class="who-item" id="login-link" href="./admin.html" role="menuitem">Admin login</a>
+              <button class="who-item" id="logout-btn" type="button" role="menuitem" hidden>Log out</button>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <h2 class="page-heading"><svg class="title-icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200.77 53.89A103.27 103.27 0 0 0 128 24h-1.07A104 104 0 0 0 24 128c0 43 26.58 79.06 69.36 94.17A32 32 0 0 0 136 192a16 16 0 0 1 16-16h46.21a31.81 31.81 0 0 0 31.2-24.88 104.4 104.4 0 0 0 2.59-24 103.28 103.28 0 0 0-31.23-73.23m13 93.71a15.89 15.89 0 0 1-15.56 12.4H152a32 32 0 0 0-32 32 16 16 0 0 1-21.31 15.07C62.49 194.3 40 164 40 128a88 88 0 0 1 87.09-88h.9a88.35 88.35 0 0 1 88 87.25 89 89 0 0 1-2.18 20.35ZM140 76a12 12 0 1 1-12-12 12 12 0 0 1 12 12m-44 24a12 12 0 1 1-12-12 12 12 0 0 1 12 12m0 56a12 12 0 1 1-12-12 12 12 0 0 1 12 12m88-56a12 12 0 1 1-12-12 12 12 0 0 1 12 12"/></svg>Match a website's theme colour</h2>
+      <p class="note">
+        Give a site and this reads the colour it paints itself in, then uses it for
+        the icons. It carries to the gallery, the generator and the resizer, and
+        this page keeps the address and palette so you can come back to them.
+        Reloading the home page starts again with the default colour.
+      </p>
+
+      <div class="card site-theme" data-site-theme>
+        <label for="site-url">Website address</label>
+        <div class="site-theme-row">
+          <input
+            id="site-url"
+            type="url"
+            data-site-url
+            placeholder="genie-icons.vercel.app"
+            autocomplete="url"
+            spellcheck="false"
+          />
+          <button class="btn" type="button" data-site-go>Fetch theme colour</button>
+        </div>
+        <div class="site-theme-out" data-site-out></div>
+        <div class="site-theme-manual">
+          <label for="hex-in">or paste a colour</label>
+          <input id="hex-in" type="text" data-hex-in maxlength="7" placeholder="#fc5846" spellcheck="false" />
+          <button class="btn" type="button" data-hex-go>Use</button>
+          <span class="grow"></span>
+          <button class="btn" type="button" id="clear-color" hidden>Clear</button>
+        </div>
+      </div>
+
+      <div class="preview">
+        <div class="current" id="current" hidden>
+          <span class="chip" id="current-chip"></span>
+          <span>Icons will use <code id="current-hex"></code></span>
+        </div>
+        <div class="preview-strip" id="preview-strip">
+          <span class="preview-empty">Loading a few icons to preview…</span>
+        </div>
+      </div>
+
+      <!-- Revealed once there is a colour to carry: the point of choosing one is
+           to go and use it somewhere. -->
+      <div class="onward" id="onward" hidden>
+        <div class="note" style="margin: 0">Now use it in:</div>
+        <div class="onward-row">
+          <a class="btn" href="./gallery.html">Icon Gallery</a>
+          <a class="btn" href="./generator.html">Icon Generator</a>
+          <a class="btn" href="./resizer.html">Icon Resizer</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-inner" data-site-footer-bar></div>
+    </footer>
+
+    <script type="module">
+      import { api } from "./lib/api.js";
+      import { initTheme } from "./lib/theme.js";
+      import { initHeader } from "./lib/header.js";
+      import { initFooter } from "./lib/footer.js";
+      import { initSiteTheme } from "./lib/site-theme.js";
+      import { readIconTheme, writeIconTheme, clearIconTheme, storeIconColor } from "./lib/icon-color.js";
+
+      initTheme();
+      initHeader({ current: "theme", visit: true });
+      initFooter();
+
+      const root = document.documentElement;
+      const strip = document.getElementById("preview-strip");
+      const onward = document.getElementById("onward");
+      const current = document.getElementById("current");
+      const currentChip = document.getElementById("current-chip");
+      const currentHex = document.getElementById("current-hex");
+      const clearBtn = document.getElementById("clear-color");
+
+      // Starts at whatever was chosen last, so returning to this page shows the
+      // state it was left in rather than a blank slate.
+      const saved = readIconTheme();
+      let color = saved.color;
+
+      /**
+       * Put a colour into effect: on this page's preview, in storage for the
+       * other pages, and in the two bits of chrome that report it.
+       *
+       * Passing null clears it, which is the difference between "no choice made"
+       * and "chose the theme's own foreground" — the latter would stick a hex in
+       * storage that happens to match today's theme and be wrong in the other one.
+       */
+      function apply(hex) {
+        color = hex;
+        storeIconColor(hex);
+        root.style.setProperty("--preview-color", hex || "var(--fg)");
+        const has = Boolean(hex);
+        current.hidden = !has;
+        onward.hidden = !has;
+        clearBtn.hidden = !has;
+        if (has) {
+          currentChip.style.background = hex;
+          currentHex.textContent = hex;
+        }
+      }
+
+      const siteTheme = initSiteTheme({
+        applyColor: apply,
+        activeColor: () => color,
+        // Carried so a return to this page shows the address and the palette
+        // again, instead of asking that site for an answer this tab already has.
+        onSwatches: ({ site, swatches }) => writeIconTheme(site ? { site, swatches } : { swatches }),
+      });
+
+      // Clear forgets the site and its palette too, not just the colour: leaving
+      // a swatch row on screen under "no colour applied" would claim a choice
+      // that is no longer in effect.
+      clearBtn.addEventListener("click", () => {
+        clearIconTheme();
+        apply(null);
+        document.querySelector("[data-site-url]").value = "";
+        const out = document.querySelector("[data-site-out]");
+        out.className = "site-theme-out";
+        out.replaceChildren();
+      });
+
+      /**
+       * A handful of real icons to judge the colour on.
+       *
+       * Rendered from the same catalogue the gallery draws, so what you see here
+       * is what you get there. A failure is not worth an error banner: the page's
+       * job is choosing a colour, and that works with no preview at all.
+       */
+      // The gallery caches its Popular Icons set here, keyed and aged by that
+      // page. This one only reads it, and only far enough to trust the shape:
+      // which exact list it was built from is the gallery's business, and any
+      // recognisable icon serves as a colour sample.
+      const POPULAR_CACHE = "icon-genie.popular";
+      const PREVIEW_COUNT = 10;
+
+      function popularFromCache() {
+        let raw;
+        try {
+          raw = localStorage.getItem(POPULAR_CACHE);
+        } catch {
+          return []; // storage blocked; fall through to the request
+        }
+        if (!raw) return [];
+        try {
+          const hit = JSON.parse(raw);
+          if (!Array.isArray(hit?.icons)) return [];
+          return hit.icons.filter((i) => i?.weights?.regular).slice(0, PREVIEW_COUNT);
+        } catch {
+          return []; // half-written or hand-edited; ignore rather than trust
+        }
+      }
+
+      function paintPreview(icons) {
+        strip.innerHTML = icons
+          .map(
+            (icon) =>
+              `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${icon.weights.regular}</svg>`
+          )
+          .join("");
+      }
+
+      // Only reached when the gallery has not been visited in this browser. Not
+      // `/api/icons?limit=10`: that pages alphabetically and would offer 10k,
+      // 10mp and 1x-mobiledata-badge as the sample.
+      const FALLBACK = [
+        "heart", "star", "house", "bell", "gear",
+        "user", "magnifying-glass", "camera", "envelope", "globe",
+      ];
+
+      /**
+       * Ten icons to judge the colour against, from the gallery's cached popular
+       * set when it is there — no request, and icons anyone recognises.
+       *
+       * A failure is not worth an error banner: this page's job is choosing a
+       * colour, and that works with no preview at all.
+       */
+      async function loadPreview() {
+        const cached = popularFromCache();
+        if (cached.length) return paintPreview(cached);
+        try {
+          // One icon per request, from the endpoint that serves exactly one.
+          // Searching the catalogue for each name instead meant ten pages of
+          // matches — every weight's markup for all 43 icons containing "heart"
+          // — about 926KB to draw ten glyphs. These are ~480 bytes each.
+          const found = await Promise.all(
+            FALLBACK.map((name) =>
+              fetch(`/api/svg/${encodeURIComponent(name)}.svg`)
+                .then((r) => (r.ok ? r.text() : null))
+                .catch(() => null)
+            )
+          );
+          const markup = found.filter(Boolean);
+          if (!markup.length) throw new Error("no icons");
+          // Already whole <svg> documents, so they go in as they are. They keep
+          // fill="currentColor", which is what makes them follow the chosen
+          // colour like the cached ones do.
+          strip.innerHTML = markup.join("");
+        } catch {
+          strip.innerHTML = '<span class="preview-empty">Preview unavailable — the colour still applies.</span>';
+        }
+      }
+
+      apply(color);
+      // After apply(), so syncSelection marks the chip that is actually in force.
+      siteTheme.restore(saved);
+      loadPreview();
+    </script>
+  </body>
+</html>

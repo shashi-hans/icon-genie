@@ -11,14 +11,12 @@
 // its own preview. Both hand in an `applyColor` and read back through
 // `activeColor`, so one panel implementation serves both without knowing either.
 import { api } from "./api.js";
+// One parser for both. icon-color.js imports nothing, so depending on it here
+// adds no weight; the reverse would drag api.js into the three pages that read
+// a colour but never show the picker.
+export { parseHex } from "./icon-color.js";
+import { parseHex } from "./icon-color.js";
 
-/** #abc or #aabbcc, with or without the hash, normalised to #aabbcc. Null otherwise. */
-export function parseHex(raw) {
-  const value = String(raw).trim().replace(/^#?/, "#").toLowerCase();
-  const short = value.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/);
-  if (short) return `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`;
-  return /^#[0-9a-f]{6}$/.test(value) ? value : null;
-}
 
 /**
  * Wire every [data-site-theme] panel on the page.
@@ -28,7 +26,7 @@ export function parseHex(raw) {
  * colour rather than the last click, so a colour picked elsewhere, or a reset,
  * clears the selection instead of leaving a chip claiming to be active.
  */
-export function initSiteTheme({ applyColor, activeColor }) {
+export function initSiteTheme({ applyColor, activeColor, onSwatches }) {
   /** Mark whichever fetched swatch is currently in effect, across every panel. */
   function syncSelection() {
     const active = (activeColor() || "").toLowerCase();
@@ -80,8 +78,10 @@ export function initSiteTheme({ applyColor, activeColor }) {
   }
 
   function showAppliedColor(out, hex, source) {
-    renderSwatches(out, [{ hex, source }]);
+    const swatches = [{ hex, source }];
+    renderSwatches(out, swatches);
     apply(hex);
+    onSwatches?.({ site: "", swatches });
   }
 
   async function matchSiteTheme(panel) {
@@ -113,6 +113,7 @@ export function initSiteTheme({ applyColor, activeColor }) {
       renderSwatches(out, swatches);
       // Applied after the chips exist so the first one paints as selected.
       apply(swatches[0].hex);
+      onSwatches?.({ site: url, swatches });
     } catch (err) {
       out.className = "site-theme-out error";
       out.textContent = err.message;
@@ -160,5 +161,20 @@ export function initSiteTheme({ applyColor, activeColor }) {
     });
   }
 
-  return { syncSelection };
+  /**
+   * Put a previous result back on screen: the address as typed and the swatches
+   * it produced. Deliberately does not apply a colour — the caller has already
+   * done that, and re-applying here would fight it. syncSelection then marks
+   * whichever chip matches what is actually in effect.
+   */
+  function restore({ site, swatches }) {
+    if (!swatches?.length) return;
+    for (const panel of document.querySelectorAll("[data-site-theme]")) {
+      if (site) panel.querySelector("[data-site-url]").value = site;
+      renderSwatches(panel.querySelector("[data-site-out]"), swatches);
+    }
+    syncSelection();
+  }
+
+  return { syncSelection, restore };
 }

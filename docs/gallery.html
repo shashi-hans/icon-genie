@@ -31,8 +31,16 @@
       }
     </script>
     <link rel="stylesheet" href="./app.css" />
+    <link rel="modulepreload" href="./lib/header.js" />
+    <link rel="modulepreload" href="./lib/api.js" />
+    <link rel="modulepreload" href="./lib/theme.js" />
     <style>
-      .ctl input[type="range"] { width: 100px; accent-color: var(--accent); }
+      /* The slider tracks the colour the icons are actually drawn in, not the
+         theme's own accent — it sits beside the colour picker, and two different
+         greens there read as a bug. --preview-color is what the grid, the modal
+         and the previews all use, and it falls back to --fg when the colour is
+         reset, so the slider follows that too. */
+      .ctl input[type="range"] { width: 100px; accent-color: var(--preview-color); }
       /* The group already draws the border and background, so the select inside
          it carries neither — same treatment as the range and colour inputs. */
       .ctl select {
@@ -68,7 +76,9 @@
         box-shadow: 0 5px 10px -8px rgba(0, 0, 0, 0.35);
       }
 
-      main { padding: 20px; }
+      /* Same body width as the resizer and the generator, so the three tools
+         line up rather than this one running edge to edge. */
+      main { width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
       /* The heading for whatever the grid is currently showing, with the count
          that used to sit in the controls row. */
       .section-bar {
@@ -76,7 +86,12 @@
         flex-wrap: wrap; margin-bottom: 12px;
       }
       .section-bar h2 { margin: 0; font-size: 16px; color: var(--accent); }
-      .page-head { margin-bottom: 14px; }
+      /* Ranged left and given room before the controls. app.css centres h1 and
+         .tagline site-wide; this page wants them left, and overriding here
+         leaves the admin page's own h1 alone. */
+      .page-head { margin-bottom: 28px; }
+      .page-head h1 { text-align: left; font-size: 20px; padding: 0; }
+      .page-head .tagline { text-align: left; }
       /* The controls sit with the grid they act on rather than in the header, and
          stay put above it while the page scrolls. */
       .controls { margin-bottom: 16px; }
@@ -122,7 +137,7 @@
       /* --- Detail modal --------------------------------------------------- */
       /* Every dialog on the page, so a new one is centred by default rather than
          landing in the document flow. */
-      #modal, #gen-modal, #login-modal, #hist-modal, #contrib-gate {
+      #modal, #gen-modal, #login-modal, #hist-modal {
         position: fixed;
         inset: 0;
         z-index: 20;
@@ -332,87 +347,48 @@
       .gen-right[hidden] { display: none; }
 
       /* The credit field and its label, now only inside the contribution gate. */
-      .contribute-label { color: var(--fg); font-size: 14px; }
-      .contribute-label span {
-        display: block; color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 2px;
-      }
-      /* "Match a website's theme colour", in both the detail and generate dialogs. */
-      .site-theme {
-        margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
-      }
-      .site-theme > label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-      .site-theme-row { display: flex; gap: 8px; }
-      .site-theme-row input {
-        flex: 1; min-width: 0;
-        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
-        padding: 8px 10px; border-radius: 8px; font-size: 14px;
-      }
-      .site-theme-row .btn { height: auto; flex: none; }
-      .site-theme-out {
-        margin: 10px 0 4px; font-size: 12px; color: var(--muted);
-        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      }
-      .site-theme-out:empty { display: none; }
-      .site-theme-out.error { color: var(--bad); }
-      .site-theme-out.ok { color: var(--ok); }
-      /* Spaced away from the row above and whatever follows the panel. The
-         swatch output between them collapses to nothing when empty, so this row
-         would otherwise sit flush against both. */
-      .site-theme-manual { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
-      .site-theme-manual label { color: var(--muted); font-size: 12px; flex: none; }
-      .site-theme-manual input {
-        width: 96px; flex: none;
-        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
-        padding: 7px 10px; border-radius: 8px; font-size: 14px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      }
-      .site-theme-manual .btn { height: auto; padding: 7px 12px; flex: none; }
-      /* The selection ring needs room, so the row carries the gap below the
-         swatches rather than the container clipping it. */
-      .swatch-label { color: var(--muted); font-size: 12px; flex: none; }
-      .swatch-row { display: inline-flex; gap: 10px; padding: 3px 0 5px; }
-      .swatch {
-        width: 22px; height: 22px; padding: 0;
-        border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
-      }
-      .swatch:hover { border-color: var(--accent); }
-      /* Two rings: one in the page background to separate the marker from the
-         swatch's own colour, one in the foreground to be visible on any hue. */
-      .swatch.selected {
-        border-color: transparent;
-        box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
-      }
-      /* The contribution gate sits above the generate dialog it interrupts. */
-      #contrib-gate { z-index: 30; }
-      .gate-card { width: min(440px, 100%); }
-      .gate-card h3 { margin: 0 0 6px; font-size: 15px; }
-      .gate-note {
-        margin: 0 0 14px;
-        font-size: 12px;
-        color: var(--accent);
-      }
-      .gate-card input {
-        width: 100%; margin: 6px 0 10px;
-        background: var(--panel); border: 1px solid var(--border); color: var(--fg);
-        padding: 9px 12px; border-radius: 8px; font-size: 14px;
-      }
-      .gate-card .btn { width: 100%; }
     </style>
   </head>
   <body>
     <!-- The header carries only the site bar that every page shares. The
          gallery's own title and controls belong to the page, so they sit in the
          body with the grid they act on. -->
-    <header data-site-header></header>
+    <header data-site-header>
+      <!-- Generated by scripts/build-header.js from docs/lib/header-markup.js.
+           Do not edit here; edit the template and rebuild. -->
+      <div class="site-bar">
+        <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
+        <nav>
+          <a class="btn" href="./gallery.html" aria-current="page">Icon Gallery</a>
+          <a class="btn" href="./generator.html">Icon Generator</a>
+          <a class="btn" href="./resizer.html">Icon Resizer</a>
+          <a class="btn" href="./theme.html">Icon Theme</a>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="who">
+            <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
+              <span id="who-label">Welcome</span>
+              <span class="caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="who-menu" id="who-menu" role="menu" hidden>
+              <button class="who-item" id="hist-open" type="button" role="menuitem">History</button>
+              <a class="who-item" id="admin-link" href="./admin.html" role="menuitem" hidden>Icon approval</a>
+              <a class="who-item" id="login-link" href="./admin.html" role="menuitem">Admin login</a>
+              <button class="who-item" id="logout-btn" type="button" role="menuitem" hidden>Log out</button>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
 
     <main>
       <div class="page-head">
-        <h1>Icon Gallery</h1>
+        <h1 class="page-heading"><svg class="title-icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="m229.66 218.34-50.07-50.06a88.11 88.11 0 1 0-11.31 11.31l50.06 50.07a8 8 0 0 0 11.32-11.32M40 112a72 72 0 1 1 72 72 72.08 72.08 0 0 1-72-72"/></svg>Icon Gallery</h1>
         <div class="tagline">Free icons for all your needs.</div>
         <div class="sub">Click any icon to customize, copy a snippet, or download.</div>
       </div>
       <div class="controls">
         <input id="search" type="search" placeholder="Search icon from list of 8470 icons ..." autocomplete="off" />
+        <button class="btn" id="search-go" type="button">Search</button>
         <span class="ctl">
           <label for="weight">weight</label>
           <select id="weight" title="Preview weight">
@@ -471,22 +447,6 @@
             <select id="modal-size"></select>
           </span>
         </div>
-        <!-- Recolour to a site's theme. The colour is global (--preview-color),
-             so the copy here and the one in the generate dialog drive the same
-             value and the same swatch in the header. -->
-        <div class="site-theme" data-site-theme>
-          <label>Match a website's theme colour</label>
-          <div class="site-theme-row">
-            <input type="url" data-site-url placeholder="icon-gallery.com" autocomplete="url" spellcheck="false" />
-            <button class="btn" type="button" data-site-go>Fetch theme colour</button>
-          </div>
-          <div class="site-theme-out" data-site-out></div>
-          <div class="site-theme-manual">
-            <label>or paste a colour</label>
-            <input type="text" data-hex-in maxlength="7" placeholder="#fc5846" spellcheck="false" />
-            <button class="btn" type="button" data-hex-go>Use</button>
-          </div>
-        </div>
         <pre class="snippet"><code id="snippet-code"></code></pre>
         <div class="admin-actions" id="modal-admin" hidden>
           <span class="label">Admin</span>
@@ -541,7 +501,7 @@
       // Same derivation the library and the build use, so a generated preview
       // matches what the React component renders.
       import { deriveWeightInner } from "./stroke-weights.js";
-      import { initSiteTheme } from "./lib/site-theme.js";
+      import { storedIconColor } from "./lib/icon-color.js";
       import { initHeader } from "./lib/header.js";
       import { initFooter } from "./lib/footer.js";
       import { initTheme, onThemeChange } from "./lib/theme.js";
@@ -751,25 +711,13 @@
        * Derived rather than fixed because the cell size is a user control: at
        * size 16 a laptop screen holds several hundred cells, at 96 a few dozen.
        */
-      const PAGE_SCREENS = 0.55;
+      // One page is 40 icons, whatever the viewport. It used to be derived from
+      // how many cells fit — 48 on a small laptop, 285 on a large monitor — which
+      // made the page a different size for every reader and had to be recomputed
+      // on resize. 40 also matches the popular set, so the first screen and every
+      // page after it hold the same number.
+      const PAGE_SIZE = 40;
 
-      function pageSize() {
-        const styles = getComputedStyle(grid);
-        const gap = parseFloat(styles.gap) || 10;
-        const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-        const minCol = 120; // matches grid-template-columns
-        const usable = Math.max(grid.clientWidth - padX, minCol);
-        const cols = Math.max(1, Math.floor((usable + gap) / (minCol + gap)));
-        // 16px padding top and bottom, the preview, its gap, and the name line.
-        const cellH = 32 + currentSize + 8 + 18;
-        // Fetch a fraction of a screenful rather than a whole one plus slack.
-        // Calibrated so 1920x993 asks for 84 cells; scaling the row count keeps
-        // that proportion at every other viewport and through the preview-size
-        // control, instead of pinning one number that is wrong everywhere else.
-        const rows = Math.max(1, Math.ceil((window.innerHeight / (cellH + gap)) * PAGE_SCREENS));
-        // The server caps at 400; asking for more would just be trimmed.
-        return Math.min(Math.max(cols * rows, 28), 400);
-      }
 
       /** Re-draw the icons already in hand, for a weight or colour change. */
       function renderCurrent() {
@@ -817,8 +765,6 @@
         "download", "upload", "share", "printer", "floppy-disk",
         "funnel", "arrows-clockwise", "file", "folder", "image",
         "camera", "play", "calendar", "clock", "envelope",
-        "phone", "lock", "shield-check", "info", "warning",
-        "question", "globe", "map-pin", "sign-out", "code",
       ];
 
       async function loadPage({ reset = false } = {}) {
@@ -827,7 +773,7 @@
         // than as a page of the alphabet. Paging is off in that mode: the set is
         // the whole result.
         if (!currentQuery) return loadPopular();
-        pageLimit = pageSize();
+        pageLimit = PAGE_SIZE;
         const params = new URLSearchParams({
           offset: String(pageOffset),
           limit: String(pageLimit),
@@ -869,7 +815,7 @@
       }
 
       /**
-       * The default view: the 50 popular icons, in the order POPULAR lists them.
+       * The default view: the 40 popular icons, in the order POPULAR lists them.
        *
        * They are spread through the catalogue alphabetically, so one paged
        * request cannot return them. This asks for all of them by fetching the
@@ -877,7 +823,7 @@
        * already serves for the weight selector.
        */
       /* --- Popular-set cache ------------------------------------------------ */
-      // The popular set costs 50 requests to assemble, because /api/icons pages
+      // The popular set costs one request per name to assemble, because /api/icons pages
       // alphabetically and these names are scattered through the catalogue. It is
       // also the first thing every visitor sees. So it is stored once and read
       // from storage on every later landing, with no request at all.
@@ -1010,15 +956,20 @@
         }
       }
 
-      let searchTimer = null;
-      function scheduleSearch() {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-          const next = search.value.trim().toLowerCase();
-          if (next === currentQuery) return;
-          currentQuery = next;
-          loadPage({ reset: true });
-        }, 220);
+      /**
+       * Run the search that is currently typed.
+       *
+       * Only from the button or Enter, never from typing. Searching per keystroke
+       * meant a request for every prefix of a word — "heart" cost five — and each
+       * answer carries every weight's markup for up to a page of icons. The box
+       * no longer fires anything on its own, so an empty box plus Search is how
+       * you get back to the popular set.
+       */
+      function runSearch() {
+        const next = search.value.trim().toLowerCase();
+        if (next === currentQuery) return;
+        currentQuery = next;
+        loadPage({ reset: true });
       }
 
       /**
@@ -1205,7 +1156,13 @@
       });
 
       /* --- Control bar wiring --------------------------------------------- */
-      search.addEventListener("input", scheduleSearch);
+      document.getElementById("search-go").addEventListener("click", runSearch);
+      search.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runSearch();
+        }
+      });
       weightEl.addEventListener("change", () => {
         currentWeight = weightEl.value;
         // A page carries every weight, so switching one is a re-draw, not a fetch.
@@ -1216,20 +1173,11 @@
         loadPage().then(() => window.scrollTo({ top: 0 }));
       });
       nextBtn.addEventListener("click", () => {
-        // Step by the number of icons on screen, not by the limit pageSize() would
-        // compute now: a resize between the fetch and the click would otherwise
-        // move the boundary and skip a row.
+        // Step by the number actually on screen rather than by PAGE_SIZE: the last
+        // page is short, and stepping by the full page from it would skip past
+        // icons that were never shown.
         pageOffset = pageOffset + icons.length;
         loadPage().then(() => window.scrollTo({ top: 0 }));
-      });
-      // A resize changes how many cells fit. Only refetch when the count really
-      // moved, so dragging a window edge does not fire a request per pixel.
-      let resizeTimer = null;
-      window.addEventListener("resize", () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          if (pageSize() > pageLimit) loadPage();
-        }, 250);
       });
       sizeEl.addEventListener("input", () => {
         currentSize = Number(sizeEl.value);
@@ -1240,30 +1188,28 @@
       colorEl.addEventListener("input", () => {
         currentColor = colorEl.value;
         root.style.setProperty("--preview-color", currentColor);
-        siteTheme.syncSelection();
         refreshModal();
       });
       colorResetEl.addEventListener("click", () => {
         currentColor = null;
         root.style.setProperty("--preview-color", "var(--fg)");
         syncColorSwatch();
-        siteTheme.syncSelection();
         refreshModal();
       });
 
-      /* --- Match a website's theme colour --------------------------------- */
-      // The panel itself lives in lib/site-theme.js; this is only what applying a
-      // colour means on this page — the shared preview variable, the swatch in
-      // the control bar, and the open detail dialog.
-      const siteTheme = initSiteTheme({
-        applyColor(hex) {
-          currentColor = hex;
-          root.style.setProperty("--preview-color", hex);
-          colorEl.value = hex;
-          refreshModal();
-        },
-        activeColor: () => currentColor,
-      });
+      /* --- The colour chosen on theme.html --------------------------------- */
+      // Picking one is that page's job; this page starts in whatever it chose.
+      // The control bar's own picker and its reset still win for this visit,
+      // deliberately: the stored colour is a default, not a lock.
+      function applyStoredColor() {
+        const stored = storedIconColor();
+        if (!stored) return;
+        currentColor = stored;
+        root.style.setProperty("--preview-color", stored);
+        colorEl.value = stored;
+        refreshModal();
+      }
+      applyStoredColor();
 
       /* --- Identity + history ---------------------------------------------- */
       // The header owns the welcome title, the menu and logging out; lib/header.js
@@ -1315,14 +1261,20 @@
         if (e.key === "Escape" && !histModal.hidden) histModal.hidden = true;
       });
 
-      initFooter();
+      // Before initFooter: footer.js reads the same identity through loadMe(),
+      // which memoises the first call. Footer-first meant the request went out
+      // without ?visit=1 and the page view was never counted.
+      // Wired before the identity request, not inside its .then: the button ships
+      // in the generated header, so it is clickable from the first paint and a
+      // click during the round trip used to be dropped.
+      document.getElementById("hist-open")?.addEventListener("click", openHistory);
       initHeader({ current: "gallery", history: true, visit: true }).then((who) => {
         me = who;
-        document.getElementById("hist-open")?.addEventListener("click", openHistory);
         // An admin arriving mid-render should see the admin row on an icon that
         // is already open.
         refreshModal();
       });
+      initFooter();
 
       /* --- Loading the catalogue ------------------------------------------- */
       // One request per page. /api/icons takes q, offset and limit and answers

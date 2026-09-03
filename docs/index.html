@@ -32,6 +32,9 @@
       }
     </script>
     <link rel="stylesheet" href="./app.css" />
+    <link rel="modulepreload" href="./lib/header.js" />
+    <link rel="modulepreload" href="./lib/api.js" />
+    <link rel="modulepreload" href="./lib/theme.js" />
     <style>
       /* A bento layout: one screen, no scrollbar, and the space filled by panels
          of different weights rather than by padding. The grid is 12 columns and
@@ -118,10 +121,53 @@
       .chip:nth-child(7), .chip:nth-child(16) { color: var(--fg); }
 
       /* --- Tools (row 2) ----------------------------------------------------- */
-      .tool { grid-column: span 4; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-decoration: none; color: inherit; }
+      /* Four tools across the twelve-column row. At span 4 the fourth wrapped to
+         a row of its own, a third of the width, reading as an afterthought. */
+      /* Extra room above the cards, so the showcase grid of icons in row 1 does
+         not sit right on top of them. Put on this boundary rather than raised on
+         the bento's row-gap, which also paces the rows below — the same approach
+         .reasons-panel takes for its own gap. Scaled in vh like the rest of the
+         page, so a short viewport gives the space back. */
+      .tool {
+        grid-column: span 3;
+        margin-top: clamp(14px, 2.8vh, 40px);
+        display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+        text-decoration: none; color: inherit;
+      }
       /* The icon labels the title, so the two read as one line rather than as a
          badge with a heading under it. */
-      .tool-head { display: flex; align-items: center; gap: 10px; }
+      .tool-head { display: flex; align-items: center; gap: 10px; width: 100%; }
+      /* Pushed to the card's right edge rather than sitting against the title, so
+         the four line up down the row whatever each title's length. Sized in em
+         so it tracks the title, and muted until the card is hovered. */
+      /* Sits with the title rather than at the card's edge, so it reads as part of
+         the name and does not compete with the arrow for the right-hand side. */
+      .tool-new {
+        flex: none;
+        /* Claims the free space so the tag sits at the right-hand end of the title
+           row. The arrow then follows it instead of taking that space itself. */
+        margin-left: auto;
+        font-size: clamp(9px, 1.05vh, 11px);
+        font-weight: 600;
+        line-height: 1;
+        padding: 3px 7px;
+        border-radius: 999px;
+        color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+        border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      }
+      /* On a card with a tag, the tag has already pushed right; the arrow just
+         needs a gap after it rather than another auto. */
+      .tool-new + .tool-arrow { margin-left: 8px; }
+      .tool-arrow {
+        width: 0.95em; height: 0.95em; flex: none;
+        /* auto pushes it to the right edge; the margin then eases it back in so
+           it does not sit hard against the card's border. */
+        margin-left: auto;
+        margin-right: 6px;
+        color: var(--muted);
+      }
+      .tool:hover .tool-arrow { color: var(--accent); }
       .tool:hover { border-color: var(--accent); }
       .tile {
         width: clamp(28px, 3.8vh, 38px); height: clamp(28px, 3.8vh, 38px);
@@ -155,8 +201,8 @@
         color: var(--accent); font-weight: 600;
         letter-spacing: 0;
       }
-      /* Five now, so the row splits five ways; auto-fit keeps them readable when
-         the viewport cannot hold five. */
+      /* Five, and auto-fit keeps them readable when the viewport cannot hold
+         five across — they wrap rather than squeeze. */
       .reasons { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: clamp(3px, 0.5vh, 7px) 18px; }
       .reason { display: flex; gap: 9px; align-items: flex-start; }
       .reason .badge {
@@ -181,27 +227,7 @@
       .install .note { margin: 0; color: var(--muted); font-size: clamp(10px, 1.1vh, 12px); }
 
       /* --- Footer ------------------------------------------------------------ */
-      /* A real footer rather than one line: the tools, where to get the package,
-         and who the artwork belongs to. It is the last thing on a page that
-         cannot scroll, so it collapses to the single line again on a screen too
-         short to spend the height on it. */
-      .footer-full {
-        display: grid;
-        grid-template-columns: 1.6fr 1fr 1fr 1.4fr;
-        gap: 10px clamp(16px, 3vw, 44px);
-        max-width: 1420px;
-        margin: 0 auto clamp(8px, 1.2vh, 14px);
-        padding-bottom: clamp(8px, 1.2vh, 14px);
-        border-bottom: 1px solid var(--border);
-      }
-      .foot-brand b { display: block; color: var(--fg); font-size: 14px; margin-bottom: 3px; }
-      .foot-brand span { color: var(--muted); font-size: 12px; line-height: 1.5; }
-      .foot-col { display: flex; flex-direction: column; gap: 3px; }
-      .foot-col b { color: var(--fg); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
-      .foot-col a, .foot-col span { color: var(--muted); font-size: 12px; line-height: 1.5; }
-      .foot-col a:hover { color: var(--accent); }
       .foot-bottom { max-width: 1420px; }
-      @media (max-height: 960px) { .footer-full { display: none; } }
 
       /* --- Gutter rails ------------------------------------------------------ */
       /* The margins of a wide screen, filled with the library itself. Purely
@@ -269,11 +295,33 @@
         .install-code, .reasons { grid-template-columns: 1fr; }
         .chip { display: flex !important; }
         .tool p, .reason span, .install .note { display: block; }
+        .tool { margin-top: 0; }
       }
     </style>
   </head>
   <body>
-    <header data-site-header></header>
+    <header data-site-header>
+      <!-- Generated by scripts/build-header.js from docs/lib/header-markup.js.
+           Do not edit here; edit the template and rebuild. -->
+      <div class="site-bar">
+        <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
+        <nav>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="who">
+            <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
+              <span id="who-label">Welcome</span>
+              <span class="caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="who-menu" id="who-menu" role="menu" hidden>
+              
+              <a class="who-item" id="admin-link" href="./admin.html" role="menuitem" hidden>Icon approval</a>
+              <a class="who-item" id="login-link" href="./admin.html" role="menuitem">Admin login</a>
+              <button class="who-item" id="logout-btn" type="button" role="menuitem" hidden>Log out</button>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
 
     <main>
       <div class="rail left" aria-hidden="true">
@@ -340,20 +388,24 @@
         </div>
 
         <a class="panel tool" href="./gallery.html">
-          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="m229.66 218.34-50.07-50.06a88.11 88.11 0 1 0-11.31 11.31l50.06 50.07a8 8 0 0 0 11.32-11.32M40 112a72 72 0 1 1 72 72 72.08 72.08 0 0 1-72-72"/></svg></span><h3>Icon Gallery</h3></span>
+          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="m229.66 218.34-50.07-50.06a88.11 88.11 0 1 0-11.31 11.31l50.06 50.07a8 8 0 0 0 11.32-11.32M40 112a72 72 0 1 1 72 72 72.08 72.08 0 0 1-72-72"/></svg></span><h3>Icon Gallery</h3><svg class="tool-arrow" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200 64v104a8 8 0 0 1-16 0V83.31L69.66 197.66a8 8 0 0 1-11.32-11.32L172.69 72H88a8 8 0 0 1 0-16h104a8 8 0 0 1 8 8"/></svg></span>
           <p>Search every icon, switch between thin, regular, fill and duotone, set a size and colour, then copy the import line.</p>
         </a>
         <a class="panel tool" href="./generator.html">
-          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z"/></svg></span><h3>Icon Genie generator</h3></span>
-          <p>Describe an icon and get one drawn. Free with no account, with your own API key, or from your own AI chat.</p>
+          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M48 64a8 8 0 0 1 8-8h16V40a8 8 0 0 1 16 0v16h16a8 8 0 0 1 0 16H88v16a8 8 0 0 1-16 0V72H56a8 8 0 0 1-8-8m136 128h-8v-8a8 8 0 0 0-16 0v8h-8a8 8 0 0 0 0 16h8v8a8 8 0 0 0 16 0v-8h8a8 8 0 0 0 0-16m56-48h-16v-16a8 8 0 0 0-16 0v16h-16a8 8 0 0 0 0 16h16v16a8 8 0 0 0 16 0v-16h16a8 8 0 0 0 0-16m-20.69-64L80 219.31a16 16 0 0 1-22.62 0l-20.7-20.68a16 16 0 0 1 0-22.63L176 36.69a16 16 0 0 1 22.63 0l20.68 20.68a16 16 0 0 1 0 22.63m-54.63 32L144 91.31l-96 96L68.68 208ZM208 68.69 187.31 48l-32 32L176 100.69Z"/></svg></span><h3>Icon Generator</h3><svg class="tool-arrow" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200 64v104a8 8 0 0 1-16 0V83.31L69.66 197.66a8 8 0 0 1-11.32-11.32L172.69 72H88a8 8 0 0 1 0-16h104a8 8 0 0 1 8 8"/></svg></span>
+          <p>Describe an icon and get one drawn. Free with no account, with your own API key, or from your own browser AI chat.</p>
         </a>
         <a class="panel tool" href="./resizer.html">
-          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M240 192a8 8 0 0 1-8 8h-32v32a8 8 0 0 1-16 0v-32H64a8 8 0 0 1-8-8V72H24a8 8 0 0 1 0-16h32V24a8 8 0 0 1 16 0v160h160a8 8 0 0 1 8 8M96 72h88v88a8 8 0 0 0 16 0V64a8 8 0 0 0-8-8H96a8 8 0 0 0 0 16"/></svg></span><h3>Icon Resizer</h3></span>
+          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M240 192a8 8 0 0 1-8 8h-32v32a8 8 0 0 1-16 0v-32H64a8 8 0 0 1-8-8V72H24a8 8 0 0 1 0-16h32V24a8 8 0 0 1 16 0v160h160a8 8 0 0 1 8 8M96 72h88v88a8 8 0 0 0 16 0V64a8 8 0 0 0-8-8H96a8 8 0 0 0 0 16"/></svg></span><h3>Icon Resizer</h3><svg class="tool-arrow" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200 64v104a8 8 0 0 1-16 0V83.31L69.66 197.66a8 8 0 0 1-11.32-11.32L172.69 72H88a8 8 0 0 1 0-16h104a8 8 0 0 1 8 8"/></svg></span>
           <p>Drop in an SVG or PNG, pick the sizes you need, and download them. The file never leaves your browser.</p>
         </a>
+        <a class="panel tool" href="./theme.html">
+          <span class="tool-head"><span class="tile"><svg class="tile-svg" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200.77 53.89A103.27 103.27 0 0 0 128 24h-1.07A104 104 0 0 0 24 128c0 43 26.58 79.06 69.36 94.17A32 32 0 0 0 136 192a16 16 0 0 1 16-16h46.21a31.81 31.81 0 0 0 31.2-24.88 104.4 104.4 0 0 0 2.59-24 103.28 103.28 0 0 0-31.23-73.23m13 93.71a15.89 15.89 0 0 1-15.56 12.4H152a32 32 0 0 0-32 32 16 16 0 0 1-21.31 15.07C62.49 194.3 40 164 40 128a88 88 0 0 1 87.09-88h.9a88.35 88.35 0 0 1 88 87.25 89 89 0 0 1-2.18 20.35ZM140 76a12 12 0 1 1-12-12 12 12 0 0 1 12 12m-44 24a12 12 0 1 1-12-12 12 12 0 0 1 12 12m0 56a12 12 0 1 1-12-12 12 12 0 0 1 12 12m88-56a12 12 0 1 1-12-12 12 12 0 0 1 12 12"/></svg></span><h3>Icon Theme</h3><span class="tool-new">New</span><svg class="tool-arrow" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200 64v104a8 8 0 0 1-16 0V83.31L69.66 197.66a8 8 0 0 1-11.32-11.32L172.69 72H88a8 8 0 0 1 0-16h104a8 8 0 0 1 8 8"/></svg></span>
+          <p>Fetch a website's theme colour. Get every icon from Gallery and Generator in same theme colour.</p>
+        </a>
 
-        <div class="panel reasons-panel">
-          <h3 class="block-title">Why Choose Icon-Genie-Gallery ?</h3>
+        <div class="panel bare reasons-panel">
+          <h3 class="block-title">Why Choose Genie Icons ?</h3>
           <div class="panel-stats">
             <span class="stat"><b id="stat-icons">8,470</b>icons</span>
             <span class="stat"><b>4</b>weights each</span>
@@ -368,7 +420,7 @@
             </div>
             <div class="reason">
               <span class="badge"><svg class="" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200.77 53.89A103.27 103.27 0 0 0 128 24h-1.07A104 104 0 0 0 24 128c0 43 26.58 79.06 69.36 94.17A32 32 0 0 0 136 192a16 16 0 0 1 16-16h46.21a31.81 31.81 0 0 0 31.2-24.88 104.4 104.4 0 0 0 2.59-24 103.28 103.28 0 0 0-31.23-73.23m13 93.71a15.89 15.89 0 0 1-15.56 12.4H152a32 32 0 0 0-32 32 16 16 0 0 1-21.31 15.07C62.49 194.3 40 164 40 128a88 88 0 0 1 87.09-88h.9a88.35 88.35 0 0 1 88 87.25 89 89 0 0 1-2.18 20.35ZM140 76a12 12 0 1 1-12-12 12 12 0 0 1 12 12m-44 24a12 12 0 1 1-12-12 12 12 0 0 1 12 12m0 56a12 12 0 1 1-12-12 12 12 0 0 1 12 12m88-56a12 12 0 1 1-12-12 12 12 0 0 1 12 12"/></svg></span>
-              <div><b>Themeable</b><span>Every icon renders currentColor.</span></div>
+              <div><b>Themable</b><span>Get Icons Matching a website's theme.</span></div>
             </div>
             <div class="reason">
               <span class="badge"><svg class="" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M215.79 118.17a8 8 0 0 0-5-5.66L153.18 90.9l14.66-73.33a8 8 0 0 0-13.69-7l-112 120a8 8 0 0 0 3 13l57.63 21.61-14.62 73.25a8 8 0 0 0 13.69 7l112-120a8 8 0 0 0 1.94-7.26M109.37 214l10.47-52.38a8 8 0 0 0-5-9.06L62 132.71l84.62-90.66-10.46 52.38a8 8 0 0 0 5 9.06l52.8 19.8Z"/></svg></span>
@@ -376,7 +428,7 @@
             </div>
             <div class="reason">
               <span class="badge"><svg class="" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M40 88h33a32 32 0 0 0 62 0h81a8 8 0 0 0 0-16h-81a32 32 0 0 0-62 0H40a8 8 0 0 0 0 16m64-24a16 16 0 1 1-16 16 16 16 0 0 1 16-16m112 104h-17a32 32 0 0 0-62 0H40a8 8 0 0 0 0 16h97a32 32 0 0 0 62 0h17a8 8 0 0 0 0-16m-48 24a16 16 0 1 1 16-16 16 16 0 0 1-16 16"/></svg></span>
-              <div><b>Customization</b><span>Set the weight, size and colour, or match a site's theme.</span></div>
+              <div><b>Customization</b><span>Set the weight, size and colour of icon. Every icon renders currentColor by default.</span></div>
             </div>
             <div class="reason">
               <span class="badge"><svg class="" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208 40H48a16 16 0 0 0-16 16v56c0 52.72 25.52 84.67 46.93 102.19 23.06 18.86 46 25.26 47 25.53a8 8 0 0 0 4.2 0c1-.27 23.91-6.67 47-25.53C198.48 196.67 224 164.72 224 112V56a16 16 0 0 0-16-16m0 72c0 37.07-13.66 67.16-40.6 89.42a129.3 129.3 0 0 1-39.4 22.2 128.3 128.3 0 0 1-38.92-21.81C61.82 179.51 48 149.3 48 112V56h160ZM82.34 141.66a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32l-56 56a8 8 0 0 1-11.32 0Z"/></svg></span>
@@ -385,7 +437,7 @@
           </div>
         </div>
 
-        <div class="panel install">
+        <div class="panel bare install">
           <h3 class="block-title">How to Use it in your project</h3>
           <div class="install-code">
             <pre><code>npm install icon-genie</code></pre>
@@ -399,29 +451,6 @@
     </main>
 
     <footer>
-      <div class="footer-full">
-        <div class="foot-brand">
-          <b>Icon Genie Gallery</b>
-          <span>A tree-shakeable React icon library, and the tools around it.</span>
-        </div>
-        <nav class="foot-col">
-          <b>Tools</b>
-          <a href="./gallery.html">Icon Gallery</a>
-          <a href="./generator.html">Icon Genie generator</a>
-          <a href="./resizer.html">Icon Resizer</a>
-        </nav>
-        <nav class="foot-col">
-          <b>Use it</b>
-          <a href="https://www.npmjs.com/package/icon-genie">npm package</a>
-          <a href="https://github.com/shashi-hans/icon-genie">GitHub</a>
-          <a href="./api/svg/heart.svg?weight=fill">SVG endpoint</a>
-        </nav>
-        <nav class="foot-col">
-          <b>Artwork</b>
-          <span>Phosphor · Lucide · Feather · Tabler</span>
-          <span>Heroicons · Iconoir · Material Symbols · Ionicons</span>
-        </nav>
-      </div>
       <div class="footer-inner foot-bottom" data-site-footer-bar></div>
     </footer>
 
@@ -429,9 +458,14 @@
       import { api } from "./lib/api.js";
       import { initTheme } from "./lib/theme.js";
       import { initHeader } from "./lib/header.js";
+      // Reloading the homepage is the "start again" gesture: it drops the icon
+      // colour picked on the Icon Theme page. Arriving here by clicking the brand
+      // is navigation, not a reload, and leaves it alone.
+      import { clearOnHomeReload } from "./lib/icon-color.js";
       import { initFooter } from "./lib/footer.js";
 
       initTheme();
+      clearOnHomeReload();
       initHeader({ current: "", home: true, visit: true });
       initFooter();
 

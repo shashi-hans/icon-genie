@@ -209,7 +209,16 @@ function rulePattern(value) {
  * one page, so crawl-delay has nothing to pace.
  */
 export async function robotsAllows(pageUrl, path = "/") {
-  const url = new URL(pageUrl);
+  // Through the same guard fetchPage uses, and deliberately outside the try below
+  // so a refusal propagates instead of being read as "no robots.txt, carry on".
+  //
+  // This used to call fetch() directly. Because the route asks about robots.txt
+  // *before* it fetches the page, every check in this file — the bare-IP refusal,
+  // the DNS lookup, the private-range block — was skipped for that one request.
+  // Pointing the API at http://169.254.169.254 or any loopback address still
+  // reached it: the answer was refused, but the request had already been made,
+  // and whether robots.txt disallowed changed the error the caller saw.
+  const url = await checkUrl(pageUrl);
   let text;
   try {
     const res = await fetch(new URL("/robots.txt", url.origin), {

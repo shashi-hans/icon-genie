@@ -69,8 +69,10 @@ class IconGenie extends HTMLElement {
 
     const weight = this.getAttribute("weight") || "regular";
     const markup = await load(name, weight);
-    // The attribute may have changed while the fetch was in flight.
+    // Either attribute may have changed while the fetch was in flight. Checking
+    // only the name let a quick weight switch settle on the earlier response.
     if (this.getAttribute("name") !== name) return;
+    if ((this.getAttribute("weight") || "regular") !== weight) return;
 
     if (!markup) { this._slotEl.replaceChildren(); return; }
     // Parsed rather than assigned as innerHTML: the response is SVG from this
