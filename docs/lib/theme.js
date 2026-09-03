@@ -40,8 +40,19 @@ export function applyTheme(theme, { remember = false } = {}) {
   const isLight = theme !== "dark";
   const name = isLight ? "light" : "dark";
   root.setAttribute("data-theme", name);
+  // Glyph and word as separate spans, matching what build-header.js writes into
+  // the page. A narrow bar hides .tgl-word to keep the header one row, and
+  // assigning textContent here would flatten them back into one string the first
+  // time the theme was applied.
   for (const el of document.querySelectorAll("[data-theme-toggle]")) {
-    el.textContent = isLight ? "🌙 Dark" : "☀️ Light";
+    const glyph = el.querySelector(".tgl-icon");
+    const word = el.querySelector(".tgl-word");
+    if (glyph && word) {
+      glyph.textContent = isLight ? "🌙" : "☀️";
+      word.textContent = isLight ? "Dark" : "Light";
+    } else {
+      el.textContent = isLight ? "🌙 Dark" : "☀️ Light";
+    }
   }
   // Only an actual choice is written. Re-applying the current theme — which
   // initHeader does to label a toggle it has just built — must not turn the

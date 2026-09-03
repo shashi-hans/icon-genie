@@ -34,7 +34,14 @@ export const PAGES = [
  *
  * The theme toggle carries the light-theme label, light being the default for
  * anyone who has not chosen. A dark-theme visitor has it corrected by
- * lib/theme.js — the stored choice is per-visitor and cannot be baked in.
+ * lib/theme.js — the stored choice is per-visitor and cannot be baked in. Its
+ * glyph and its word are separate spans, and lib/theme.js keeps them that way:
+ * a narrow bar drops the word and keeps the glyph.
+ *
+ * The tool links sit in their own .site-tools box. On a phone that box is the
+ * part of the bar that scrolls sideways, and the theme toggle and the identity
+ * badge stay outside it — the badge opens an absolutely positioned menu, which
+ * a scroll container would clip.
  */
 export function headerBarHtml({ current = "", history = false, home = false } = {}) {
   const links = home
@@ -42,15 +49,15 @@ export function headerBarHtml({ current = "", history = false, home = false } = 
     : PAGES.map(
         (p) =>
           `<a class="btn" href="${p.href}"${p.id === current ? ' aria-current="page"' : ""}>${p.label}</a>`
-      ).join("\n          ");
+      ).join("\n            ");
 
   return `<div class="site-bar">
         <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
-        <nav>${links ? `\n          ${links}` : ""}
-          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+        <nav>${links ? `\n          <div class="site-tools">\n            ${links}\n          </div>` : ""}
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme"><span class="tgl-icon">🌙</span><span class="tgl-word">Dark</span></button>
           <div class="who">
             <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
-              <span id="who-label">Welcome</span>
+              <span id="who-label"><span class="who-greet">Welcome</span></span>
               <span class="caret" aria-hidden="true">▾</span>
             </button>
             <div class="who-menu" id="who-menu" role="menu" hidden>

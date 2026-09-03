@@ -94,9 +94,14 @@ export async function initHeader({ current, history = false, visit = false, home
   // Trailing space: the name is a separate <strong>, and without it the two run
   // together as "WelcomeGuest".
   const setWelcome = (name) => {
+    // "Welcome" is an element, not a text node, so app.css can drop it on a
+    // narrow bar and keep the name — which is the part that carries meaning.
+    const greet = document.createElement("span");
+    greet.className = "who-greet";
+    greet.textContent = "Welcome ";
     const strong = document.createElement("strong");
     strong.textContent = name;
-    bar.querySelector("#who-label").replaceChildren(document.createTextNode("Welcome "), strong);
+    bar.querySelector("#who-label").replaceChildren(greet, strong);
   };
 
   const cached = cachedTitle();
