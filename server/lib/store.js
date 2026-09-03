@@ -12,7 +12,7 @@
 // demo were not the flows that would run, and every page carried a banner
 // apologising for it. Better to need a database than to pretend to have one.
 //
-// TO ADD ANOTHER DRIVER: implement the same nineteen methods against your client
+// TO ADD ANOTHER DRIVER: implement the same twenty methods against your client
 // and return it from a factory here. Keep it in ap-south-1 — submissions and
 // guest history are personal data under the DPDP Act, so residency and the
 // retention window are decisions that belong with the schema, not with the
@@ -56,6 +56,7 @@
  * @property {(opts?: {status?: string, limit?: number}) => Promise<Submission[]>} listSubmissions
  * @property {() => Promise<{pending: number, approved: number, rejected: number}>} countSubmissions
  * @property {(id: string) => Promise<Submission|null>} getSubmission
+ * @property {(ids: string[]) => Promise<Map<string,string>>} getSubmissionStatuses  id -> status, one query
  * @property {(key: string) => Promise<Submission|null>} findSubmissionByDedupeKey
  * @property {(id: string, patch: {status: string, reviewedBy: string, note?: string}) => Promise<Submission|null>} updateSubmission
  * @property {(id: string, contributor: string) => Promise<Submission|null>} setSubmissionContributor
@@ -63,7 +64,6 @@
  * @property {(rec: Omit<HistoryEntry, "id"|"createdAt">) => Promise<HistoryEntry>} addHistory
  * @property {(guestId: string, limit?: number) => Promise<HistoryEntry[]>} listHistory
  * @property {() => Promise<object[]>} listIcons          every icon, all weights
- * @property {() => Promise<object[]>} listIconSummaries  every icon, regular weight only
  * @property {(name: string) => Promise<boolean>} hasIcon  catalogue membership, without building it
  * @property {(icon: object) => Promise<object>} upsertIcon
  * @property {(name: string) => Promise<boolean>} removeIcon  true when the name is no longer served

@@ -33,12 +33,12 @@ export default handler(async (req, res) => {
 
   const entries = await store.listHistory(guestId);
   // Attach the current review status so a contributed entry shows its outcome.
-  const withStatus = await Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.submissionId) return { ...entry, status: null };
-      const submission = await store.getSubmission(entry.submissionId);
-      return { ...entry, status: submission?.status ?? null };
-    })
-  );
+  // Looked up in one query for the whole list rather than one per entry, which
+  // was up to 50 round trips for a page nobody waits 50 round trips for.
+  const statuses = await store.getSubmissionStatuses(entries.map((e) => e.submissionId));
+  const withStatus = entries.map((entry) => ({
+    ...entry,
+    status: entry.submissionId ? (statuses.get(entry.submissionId) ?? null) : null,
+  }));
   return json(res, 200, { entries: withStatus });
 });

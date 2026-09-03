@@ -29,15 +29,18 @@ export default handler(async (req, res) => {
       throw new HttpError(400, `Unknown status "${status}".`);
     }
     const submissions = await store.listSubmissions({ status });
-    // Whether the name is in the gallery already, checked now rather than
-    // trusted from submit time. POST refuses a built icon's name, but that
-    // answer goes stale: approving one submission puts its name in the
-    // catalogue, and another queued earlier under the same name passed the
-    // check before that happened. hasIcon sees approved contributions too, not
-    // just the built seed.
-    const annotated = await Promise.all(
-      submissions.map(async (s) => ({ ...s, inGallery: await store.hasIcon(s.name) }))
-    );
+    // Whether the name is in the gallery already, checked now rather than trusted
+    // from submit time. POST refuses a built icon's name, but that answer goes
+    // stale: approving one submission puts its name in the catalogue, and another
+    // queued earlier under the same name passed the check before that happened.
+    //
+    // One catalogue read, then set membership. A hasIcon per row was a database
+    // round trip each for anything outside the built seed — up to 200 on a full
+    // queue page — and the catalogue is cached and already assembled for the
+    // gallery. It answers the question more exactly too: hasIcon counts hidden
+    // names, and a hidden icon is precisely what is not in the gallery.
+    const inGallery = new Set((await store.listIcons()).map((icon) => icon.name));
+    const annotated = submissions.map((s) => ({ ...s, inGallery: inGallery.has(s.name) }));
     // Counted by the store rather than by walking a listing: listSubmissions is
     // paged, so totals derived from it stop being totals past the first page.
     const counts = await store.countSubmissions();

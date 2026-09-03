@@ -16,7 +16,7 @@
 // API, which does its own authorization — the queue behind an admin session,
 // history scoped to the caller's own guest id.
 import { HttpError } from "./http.js";
-import { iconFromSubmission, readSeed, seedMtime, toSummary } from "./icons.js";
+import { iconFromSubmission, readSeed, seedMtime } from "./icons.js";
 import "./env.js";
 
 const TIMEOUT_MS = 8000;
@@ -154,7 +154,15 @@ export function createSupabaseStore() {
     }
 
     const text = await res.text();
-    const data = text ? JSON.parse(text) : null;
+    // Parsed leniently: PostgREST answers JSON, but a proxy or gateway in front of
+    // it answers HTML on a bad day. Letting JSON.parse throw there turned a
+    // reportable 502 into an unexplained 500 from somewhere else entirely.
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      if (res.ok) throw new HttpError(502, "The database returned something unreadable.");
+    }
     if (!res.ok) {
       // PostgREST reports {code, message, details, hint}. The code is what makes
       // a unique violation distinguishable from a real fault.
@@ -387,6 +395,21 @@ export function createSupabaseStore() {
       return counts;
     },
 
+    /**
+     * Review status for many submissions at once, as a Map of id -> status.
+     *
+     * History reads this for every contributed entry it lists. One getSubmission
+     * each was up to 50 round trips to answer 50 one-word questions; this is one,
+     * and it selects two columns rather than whole rows.
+     */
+    async getSubmissionStatuses(ids) {
+      const unique = [...new Set(ids.filter(Boolean))];
+      if (unique.length === 0) return new Map();
+      const list = unique.map((id) => encodeURIComponent(id)).join(",");
+      const rows = await sb("GET", `/submissions?id=in.(${list})&select=id,status`);
+      return new Map((rows ?? []).map((row) => [row.id, row.status]));
+    },
+
     async getSubmission(id) {
       const rows = await sb("GET", `/submissions?id=${eq(id)}&limit=1`);
       return fromSubmissionRow(rows?.[0]) ?? null;
@@ -466,10 +489,6 @@ export function createSupabaseStore() {
         `/submissions?status=eq.approved&name=${eq(name)}&select=id&limit=1`
       );
       return (rows ?? []).length > 0;
-    },
-
-    async listIconSummaries() {
-      return (await catalogue()).map(toSummary);
     },
 
     /**
