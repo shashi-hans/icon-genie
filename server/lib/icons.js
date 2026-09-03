@@ -81,22 +81,6 @@ export function innerFor(icon, weight) {
   return weights[weight] || weights.regular || "";
 }
 
-/** Strip an icon down to the regular weight for the first, fast payload. */
-export function toSummary(icon) {
-  const entry = {
-    name: icon.name,
-    component: icon.component,
-    regular: icon.weights?.regular ?? "",
-  };
-  // Only community icons carry these, and the gallery needs them to show the
-  // credit and the admin controls.
-  if (icon.contributed) {
-    entry.contributed = true;
-    entry.contributor = icon.contributor || "Anonymous";
-    entry.submissionId = icon.submissionId ?? null;
-  }
-  return entry;
-}
 
 export { deriveWeightInner, toPascalCase };
 

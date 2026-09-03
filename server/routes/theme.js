@@ -110,7 +110,11 @@ export default handler(async (req, res) => {
   }
 
   const { html, url } = await fetchPage(target);
-  const swatches = extractPalette(html);
+  // Two, not the extractor's default five. A site has one colour it is actually
+  // painted in and at most one worth offering beside it; the rest are borders and
+  // greys that scored their way in. Capped here rather than trimmed in the page
+  // so the response carries what is shown and nothing more.
+  const swatches = extractPalette(html, 2);
   if (swatches.length === 0) {
     // Not an error: a page can legitimately keep every colour in a stylesheet
     // this deliberately does not follow. Say so plainly instead of failing.

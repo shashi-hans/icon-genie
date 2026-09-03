@@ -24,8 +24,12 @@ function toHex(raw) {
   const hex = value.match(/^#([0-9a-f]{3,8})$/);
   if (hex) {
     const h = hex[1];
-    if (h.length === 3) return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
+    // 3 and 4 are shorthand, the 4th digit being alpha; 6 and 8 are full, the
+    // last pair alpha. Alpha is dropped either way — the swatch is the hue, and a
+    // site's brand colour is not less its brand for being drawn at 80%.
+    if (h.length === 3 || h.length === 4) return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
     if (h.length === 6 || h.length === 8) return `#${h.slice(0, 6)}`;
+    // 5 and 7 are not valid CSS hex.
     return null;
   }
   const rgb = value.match(/^rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})/);
@@ -68,7 +72,9 @@ function saturation(hex) {
  */
 function isUsable(hex) {
   const lum = luminance(hex);
-  if (lum > 0.75 || lum < 0.02) return false;
+  // No upper bound here: the 3:1 contrast test below already refuses anything
+  // above ~0.30, so a `lum > 0.75` arm could never be reached.
+  if (lum < 0.02) return false;
   if (saturation(hex) < 0.15) return false;
   // 3:1 against white, the large-graphic threshold in WCAG. An icon lighter than
   // this is not legible on the gallery's background.
