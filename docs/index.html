@@ -297,6 +297,27 @@
         .tool p, .reason span, .install .note { display: block; }
         .tool { margin-top: 0; }
       }
+
+      /* Phone. The bento has already stacked at 900px; this is the chrome around
+         it. It repeats what app.css sets at the same width because this page
+         overrides header and footer padding, and a page's own style block is
+         read after the shared sheet. */
+      @media (max-width: 640px) {
+        header { position: static; padding: 12px 14px; }
+        footer { padding: 10px 14px; }
+        main { padding: 14px; }
+        /* Four stacked cards, each with room above it, is a long scroll before
+           the first line of prose. */
+        .tool { gap: 3px; }
+        /* Two rows of the sample grid, not four. Twenty-four chips at six across
+           push the tool cards — the reason for the page — below the fold. The
+           grid is there to show what the icons look like, and twelve do that.
+           The !important is needed, not decoration: the block above sets
+           .chip { display: flex !important } to undo the short-viewport rules,
+           and an important declaration beats a plain one whatever the
+           specificity. */
+        .chip:nth-child(n + 13) { display: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -306,10 +327,10 @@
       <div class="site-bar">
         <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
         <nav>
-          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme"><span class="tgl-icon">🌙</span><span class="tgl-word">Dark</span></button>
           <div class="who">
             <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
-              <span id="who-label">Welcome</span>
+              <span id="who-label"><span class="who-greet">Welcome</span></span>
               <span class="caret" aria-hidden="true">▾</span>
             </button>
             <div class="who-menu" id="who-menu" role="menu" hidden>

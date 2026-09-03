@@ -35,7 +35,7 @@
     <link rel="modulepreload" href="./lib/api.js" />
     <link rel="modulepreload" href="./lib/theme.js" />
     <style>
-      main { width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
+      main { width: min(1100px, 100%); margin: 0 auto; padding: 28px clamp(14px, 4vw, 20px) 48px; }
       h2 { margin: 0 0 6px; font-size: 20px; color: var(--accent); }
       .note { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
 
@@ -114,6 +114,18 @@
         width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border);
       }
       .current code { color: var(--fg); }
+
+      /* --- Touch ------------------------------------------------------- */
+      @media (pointer: coarse) and (max-width: 900px) {
+        /* A 22px chip is a fifth of a fingertip. The ring that marks the
+           selected one is drawn outside the box, so the row's padding grows
+           with it. */
+        .swatch { width: 34px; height: 34px; }
+        .swatch-row { gap: 12px; padding: 4px 0 6px; }
+        /* height: auto put this at 30px, which is the text plus its padding. */
+        .site-theme-manual .btn,
+        .site-theme-row .btn { min-height: 44px; }
+      }
     </style>
   </head>
   <body>
@@ -123,14 +135,16 @@
       <div class="site-bar">
         <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
         <nav>
-          <a class="btn" href="./gallery.html">Icon Gallery</a>
-          <a class="btn" href="./generator.html">Icon Generator</a>
-          <a class="btn" href="./resizer.html">Icon Resizer</a>
-          <a class="btn" href="./theme.html" aria-current="page">Icon Theme</a>
-          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="site-tools">
+            <a class="btn" href="./gallery.html">Icon Gallery</a>
+            <a class="btn" href="./generator.html">Icon Generator</a>
+            <a class="btn" href="./resizer.html">Icon Resizer</a>
+            <a class="btn" href="./theme.html" aria-current="page">Icon Theme</a>
+          </div>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme"><span class="tgl-icon">🌙</span><span class="tgl-word">Dark</span></button>
           <div class="who">
             <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
-              <span id="who-label">Welcome</span>
+              <span id="who-label"><span class="who-greet">Welcome</span></span>
               <span class="caret" aria-hidden="true">▾</span>
             </button>
             <div class="who-menu" id="who-menu" role="menu" hidden>

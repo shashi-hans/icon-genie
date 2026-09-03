@@ -97,6 +97,9 @@ h1 { margin: 0 0 2px; font-size: 18px; text-align: center; padding: 0 12px; colo
 .site-bar {
   display: flex;
   align-items: center;
+  /* Wrapping is what lets the narrow rules below drop the nav onto its own row.
+     On a wide screen there is nothing to wrap, so this changes nothing there. */
+  flex-wrap: wrap;
   gap: 16px;
   width: 100%;
 }
@@ -111,7 +114,14 @@ h1 { margin: 0 0 2px; font-size: 18px; text-align: center; padding: 0 12px; colo
    readers, which would otherwise read out "genie" as part of the site name.
    Emoji carry their own colour, so it is exempt from the accent rule above. */
 .site-bar .brand .brand-mark { margin-left: 8px; }
+/* The glyph and the word are separate elements so a narrow bar can drop the
+   word, and two elements in an inline-flex button sit flush without this. */
+.site-bar [data-theme-toggle] { gap: 6px; }
 .site-bar nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* The tool links, boxed so a narrow bar can scroll them without also scrolling
+   the identity badge, whose menu a scroll container would clip. On a wide bar
+   this is a flex row with nav's own gap, which is what nav did unaided. */
+.site-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .site-bar nav a { text-decoration: none; }
 /* The page you are on is named but not offered as somewhere to go. */
 .site-bar nav a[aria-current="page"] {
@@ -259,6 +269,117 @@ select option {
   border-radius: 0 7px 7px 0;
 }
 .ctl-flush > .btn:last-child:hover { border-color: var(--accent); color: var(--accent); }
+
+/* --- Narrow screens ------------------------------------------------------ */
+/* One breakpoint, at 640px: below it a phone is holding the page, above it a
+   tablet in portrait is wide enough for the desktop layout. Each page sets its
+   own main width as min(1100px, 100%), so nothing here has to undo a fixed
+   width — this is about the chrome those pages sit in.
+
+   Everything below is a narrowing, never a rewrite. The same markup and the
+   same components: fewer of them per row, and less padding around them. */
+/* Anything narrower than the desktop bar can hold in one row. Measured: the
+   brand, four tool links, the theme toggle and the identity badge come to about
+   875px, so at 768px the bar wrapped to two rows and stayed stuck there — 126px
+   of a tablet screen, permanently. Below 900px the bar becomes one row with the
+   links scrolling sideways inside it, which is what a phone expects anyway. */
+@media (max-width: 900px) {
+  /* Not sticky. Even compact this is 60-100px, and it is cheaper to scroll back
+     up for it than to hold it against the content for the whole page. */
+  header {
+    position: static;
+    padding: 12px 14px;
+    /* The desktop floor reserves one 26px row, and this bar is not that shape.
+       Guessing it wrongly is worse than not reserving at all: the bar is written
+       into the page at build time, so there is nothing to reserve for unless the
+       page was never generated. */
+    min-height: 0;
+  }
+  .site-bar { flex-wrap: nowrap; gap: 10px; }
+  .site-bar .brand {
+    font-size: 20px;
+    flex: none;
+    /* The auto margin pushed nav to the far right of the row. nav claims the
+       remaining width itself now, so it would only add a gap. */
+    margin-right: 0;
+  }
+  .site-bar nav {
+    flex: 1;
+    /* Without this a flex item refuses to shrink below its content, and the
+       links push the badge off the edge instead of scrolling. */
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  /* One row, swiped rather than wrapped. The scrollbar is hidden because the
+     row is short enough that a visible one would be most of it. */
+  .site-tools {
+    flex: 1;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .site-tools::-webkit-scrollbar { display: none; }
+  .site-tools .btn { flex: none; }
+  /* Glyph only. "🌙 Dark" is 85px of a 360px bar to say what the moon says. */
+  .site-bar [data-theme-toggle] .tgl-word { display: none; }
+  /* "Welcome Guest" is 135px of the same bar, and it is the links beside it that
+     go short of room. The name stays; the greeting goes. Only once there is a
+     name to show — before lib/header.js fills it in the badge holds the greeting
+     alone, and hiding that would leave a caret with nothing in front of it. A
+     browser without :has() keeps the greeting, which is the harmless case. */
+  .who-badge:has(strong) .who-greet { display: none; }
+  .btn { padding: 0 10px; }
+}
+
+/* A phone. Held to one row, the swipe strip for the links comes out around
+   60px wide — one truncated button — because the brand, the toggle and the badge
+   have already taken the rest. So the brand keeps the first row and everything
+   else moves to the second, which gives the links about 160px to scroll in. Two
+   rows, and never three. */
+@media (max-width: 560px) {
+  .site-bar { flex-wrap: wrap; }
+  .site-bar nav { order: 2; width: 100%; flex: none; justify-content: flex-start; }
+  .site-bar .brand { order: 1; }
+}
+
+@media (max-width: 640px) {
+
+  /* A search field asking for 200px in a row with a button cannot shrink to fit
+     a 350px content box, and the row overflows rather than wrapping. Dropping
+     the floor alone let it collapse to 100px instead, because the weight picker
+     stayed on the row and took the space. The basis is what pushes that picker
+     to a row of its own, and flex-grow then hands the field everything left. */
+  input[type="search"] { flex: 1 1 140px; min-width: 0; }
+  .controls { gap: 8px; }
+
+  footer { padding: 12px 14px; }
+
+  /* Clear of the edges, and clear of a thumb resting at the bottom. */
+  #toast { left: 14px; right: 14px; bottom: 16px; transform: translateY(8px); }
+  #toast.show { transform: translateY(0); }
+}
+
+/* A finger is not a mouse pointer. 44px is the smallest target that is reliably
+   hit, and every control in the project is one 38px token. Held to small
+   screens so a touch-capable laptop keeps the layout its width was designed
+   for. */
+@media (pointer: coarse) and (max-width: 900px) {
+  :root { --control-h: 44px; }
+  /* The group draws the border and gets the height; the select, slider and
+     colour well inside it were 18-24px tall and centred, so most of the group
+     was padding that does nothing when tapped. They fill it now. */
+  .ctl select,
+  .ctl input[type="range"] { height: 100%; }
+  /* Buttons that opt out of --control-h because a dialog packs more of them
+     into less room. They can still be tall enough to hit. */
+  .modal-card .btn,
+  .confirm .btn,
+  .gen-tabs .btn { min-height: 44px; }
+}
 
 /* --- Toast -------------------------------------------------------------- */
 #toast {

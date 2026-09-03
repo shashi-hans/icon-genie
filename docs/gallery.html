@@ -78,7 +78,7 @@
 
       /* Same body width as the resizer and the generator, so the three tools
          line up rather than this one running edge to edge. */
-      main { width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
+      main { width: min(1100px, 100%); margin: 0 auto; padding: 28px clamp(14px, 4vw, 20px) 48px; }
       /* The heading for whatever the grid is currently showing, with the count
          that used to sit in the controls row. */
       .section-bar {
@@ -98,7 +98,7 @@
 
       #grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
         /* Rows keep their natural height. A grid's rows stretch by default, and
            with only a few rows on screen that inflated every cell to share the
            leftover height. Spare space belongs below the grid, not inside the
@@ -144,7 +144,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        /* The card is min(Npx, 100%) of what this padding leaves, so on a phone
+           this is the whole margin the dialog gets. */
+        padding: clamp(10px, 3vw, 20px);
       }
       .modal-backdrop {
         position: absolute;
@@ -206,6 +208,13 @@
       .modal-credit .value { font-weight: 600; word-break: break-word; }
       .modal-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
       .modal-controls .ctl { height: 34px; }
+      /* The dialog's own shorter control height, back up to a tappable one. */
+      @media (pointer: coarse) and (max-width: 900px) {
+        .modal-controls .ctl { height: 44px; }
+        /* The select and the slider fill the group from app.css. The colour well
+           is sized here, so it has to grow here too. */
+        .ctl input[type="color"] { width: 44px; height: 36px; }
+      }
       .weight-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
       .weight-tabs button {
         background: var(--panel);
@@ -267,7 +276,10 @@
       .gen-row input { flex: 1; }
       .gen-status { color: var(--muted); min-height: 18px; margin-bottom: 8px; }
       .gen-status.error { color: var(--bad); }
-      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 0 12px; }
+      /* Six across when there is room. Fixed at six they were 35px cells on a
+           phone — the icon inside smaller than the caption under it. auto-fit
+           wraps to three and two instead of shrinking past legible. */
+        .gen-weights { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: 8px; margin: 0 0 12px; }
       .gen-weights figure { margin: 0; text-align: center; }
       .gen-weights .gen-cell {
         border: 1px solid var(--border); border-radius: 8px; padding: 8px;
@@ -282,7 +294,7 @@
       .gen-panel[hidden] { display: none; }
       .gen-note { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 6px 0 8px; }
       .gen-note strong { color: var(--fg); font-weight: 600; }
-      .gen-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+      .gen-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 8px; }
       .gen-fields input { width: 100%; }
       .gen-fields .full { grid-column: 1 / -1; }
       #gen-paste { width: 100%; min-height: 88px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
@@ -359,14 +371,16 @@
       <div class="site-bar">
         <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
         <nav>
-          <a class="btn" href="./gallery.html" aria-current="page">Icon Gallery</a>
-          <a class="btn" href="./generator.html">Icon Generator</a>
-          <a class="btn" href="./resizer.html">Icon Resizer</a>
-          <a class="btn" href="./theme.html">Icon Theme</a>
-          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="site-tools">
+            <a class="btn" href="./gallery.html" aria-current="page">Icon Gallery</a>
+            <a class="btn" href="./generator.html">Icon Generator</a>
+            <a class="btn" href="./resizer.html">Icon Resizer</a>
+            <a class="btn" href="./theme.html">Icon Theme</a>
+          </div>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme"><span class="tgl-icon">🌙</span><span class="tgl-word">Dark</span></button>
           <div class="who">
             <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
-              <span id="who-label">Welcome</span>
+              <span id="who-label"><span class="who-greet">Welcome</span></span>
               <span class="caret" aria-hidden="true">▾</span>
             </button>
             <div class="who-menu" id="who-menu" role="menu" hidden>

@@ -38,7 +38,7 @@
       /* The generator is a page, not a dialog: the two columns that used to sit
          inside a modal are the page's own layout. Everything below is specific to
          it; the palette, chrome and buttons come from app.css. */
-      main { width: 1100px; margin: 0 auto; padding: 24px 20px 44px; }
+      main { width: min(1100px, 100%); margin: 0 auto; padding: 24px clamp(14px, 4vw, 20px) 44px; }
       .page-title { margin: 0 0 4px; font-size: 20px; color: var(--accent); }
       .page-note { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
       /* The shared height is for the header bar; dialogs pack more buttons into
@@ -54,7 +54,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        /* The card is min(Npx, 100%) of what this padding leaves, so on a phone
+           this is the whole margin the dialog gets. */
+        padding: clamp(10px, 3vw, 20px);
       }
       .modal-backdrop {
         position: absolute;
@@ -160,7 +162,10 @@
         font: inherit; font-size: 14px; padding: 0; cursor: pointer;
       }
       .ctl select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-      .gen-weights { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 0 12px; }
+      /* Six across when there is room. Fixed at six they were 35px cells on a
+           phone — the icon inside smaller than the caption under it. auto-fit
+           wraps to three and two instead of shrinking past legible. */
+        .gen-weights { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: 8px; margin: 0 0 12px; }
       .gen-weights figure { margin: 0; text-align: center; }
       .gen-weights .gen-cell {
         border: 1px solid var(--border); border-radius: 8px; padding: 8px;
@@ -223,14 +228,16 @@
       <div class="site-bar">
         <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
         <nav>
-          <a class="btn" href="./gallery.html">Icon Gallery</a>
-          <a class="btn" href="./generator.html" aria-current="page">Icon Generator</a>
-          <a class="btn" href="./resizer.html">Icon Resizer</a>
-          <a class="btn" href="./theme.html">Icon Theme</a>
-          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="site-tools">
+            <a class="btn" href="./gallery.html">Icon Gallery</a>
+            <a class="btn" href="./generator.html" aria-current="page">Icon Generator</a>
+            <a class="btn" href="./resizer.html">Icon Resizer</a>
+            <a class="btn" href="./theme.html">Icon Theme</a>
+          </div>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme"><span class="tgl-icon">🌙</span><span class="tgl-word">Dark</span></button>
           <div class="who">
             <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
-              <span id="who-label">Welcome</span>
+              <span id="who-label"><span class="who-greet">Welcome</span></span>
               <span class="caret" aria-hidden="true">▾</span>
             </button>
             <div class="who-menu" id="who-menu" role="menu" hidden>
@@ -325,7 +332,7 @@
         <div class="gen-status" id="gen-status"></div>
          </div>
          <div class="gen-placeholder" id="gen-empty">
-          Nothing generated yet. Describe an icon on the left and press Generate; the four weights
+          Nothing generated yet. Describe an icon and press Generate; the four weights
           and the export buttons appear here.
         </div>
         <div class="gen-right" id="gen-result" hidden>

@@ -62,7 +62,7 @@
       .btn[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
       .btn.ok:hover { border-color: var(--ok); color: var(--ok); }
       .btn.bad:hover { border-color: var(--bad); color: var(--bad); }
-      main { padding: 20px; width: 1100px; margin: 0 auto; }
+      main { padding: 20px clamp(14px, 4vw, 20px); width: min(1100px, 100%); margin: 0 auto; }
       .filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
       .note { color: var(--muted); }
       .card {
@@ -180,6 +180,26 @@
         margin: 12px 0 8px;
         font-size: 14px;
       }
+
+      /* --- Narrow screens ---------------------------------------------- */
+      @media (max-width: 640px) {
+        /* The preview column and the submission's details stop fitting side by
+           side: the previews are four fixed cells, so the details column takes
+           whatever is left, which is not enough to read a prompt in. */
+        .card { grid-template-columns: 1fr; gap: 12px; }
+        /* Labels above values rather than beside them, for the same reason. */
+        dl { grid-template-columns: 1fr; gap: 0 0; }
+        dl dt { margin-top: 6px; }
+        /* Not sticky, matching the header: a wrapped footer and a wrapped bar
+           together leave little of a phone screen for the queue itself. */
+        footer { position: static; padding: 12px 14px; }
+        /* The bar bleeds to the page edges by cancelling main's side padding,
+           so it has to cancel the value main actually has, not a guess at it. */
+        .page-bar {
+          margin: -20px calc(-1 * clamp(14px, 4vw, 20px)) 16px;
+          padding: 12px clamp(14px, 4vw, 20px);
+        }
+      }
     </style>
   </head>
   <body>
@@ -189,14 +209,16 @@
       <div class="site-bar">
         <a class="brand" href="./index.html">Genie Icons<span class="brand-mark" aria-hidden="true">🧞</span></a>
         <nav>
-          <a class="btn" href="./gallery.html">Icon Gallery</a>
-          <a class="btn" href="./generator.html">Icon Generator</a>
-          <a class="btn" href="./resizer.html">Icon Resizer</a>
-          <a class="btn" href="./theme.html">Icon Theme</a>
-          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme">🌙 Dark</button>
+          <div class="site-tools">
+            <a class="btn" href="./gallery.html">Icon Gallery</a>
+            <a class="btn" href="./generator.html">Icon Generator</a>
+            <a class="btn" href="./resizer.html">Icon Resizer</a>
+            <a class="btn" href="./theme.html">Icon Theme</a>
+          </div>
+          <button class="btn" type="button" data-theme-toggle aria-label="Toggle theme"><span class="tgl-icon">🌙</span><span class="tgl-word">Dark</span></button>
           <div class="who">
             <button class="who-badge" id="who-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu">
-              <span id="who-label">Welcome</span>
+              <span id="who-label"><span class="who-greet">Welcome</span></span>
               <span class="caret" aria-hidden="true">▾</span>
             </button>
             <div class="who-menu" id="who-menu" role="menu" hidden>
